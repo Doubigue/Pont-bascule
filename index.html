@@ -10,7 +10,10 @@
 <title>🌾 Pont Bascule - Gestion Graines</title>
 <link rel="manifest" href="data:application/json,{%22name%22:%22Pont%20Bascule%20Graines%22,%22short_name%22:%22PontBascule%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%231a2e1a%22,%22theme_color%22:%22%231a2e1a%22}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Google API -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://apis.google.com/js/api.js" async onload="gapiLoaded()"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 
@@ -553,8 +556,66 @@
     .form-grid .full { grid-column: 1; }
   }
 
-  /* === PAIEMENTS === */
-  .pay-ticket-row input[type=checkbox] {
+  /* === DRIVE AUTH === */
+  #drive-auth-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 32px;
+    text-align: center;
+  }
+  #drive-auth-overlay.open { display: flex; }
+  .drive-auth-logo {
+    font-size: 64px;
+    margin-bottom: 20px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  .drive-auth-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .drive-auth-sub {
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .drive-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    background: var(--surface2);
+  }
+  .drive-status-badge.connected { border-color: #4285f4; color: #4285f4; }
+  .drive-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+  .drive-status-badge.connected .drive-dot { background: #4285f4; box-shadow: 0 0 6px #4285f4; }
+
+  #google-signin-btn-container { margin-bottom: 16px; }
+  .skip-drive-link {
+    font-size: 12px;
+    color: var(--text3);
+    text-decoration: underline;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .skip-drive-link:hover { color: var(--text2); }
+
     width: 22px; height: 22px; cursor: pointer; accent-color: var(--green);
   }
   #scan-result { animation: fadeIn 0.3s ease; }
@@ -570,6 +631,10 @@
       <div class="logo">🌾 Pont<span>Bascule</span></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
+    <div class="drive-status-badge" id="drive-status-btn" onclick="showDriveAuthOverlay()">
+      <div class="drive-dot"></div>
+      <span id="drive-status-text">Drive</span>
+    </div>
     <div class="file-status" id="file-status-btn" onclick="openFilePicker()">
       <div class="file-dot"></div>
       <span id="file-status-text">Aucun fichier</span>
@@ -580,10 +645,10 @@
   <!-- TABS -->
   <div id="tabs">
     <div class="tab active" onclick="showPage('pesee')" data-page="pesee">⚖️ Pesée</div>
+    <div class="tab" onclick="showPage('scanner')" data-page="scanner">📷 Scanner</div>
+    <div class="tab" onclick="showPage('paiements')" data-page="paiements">💰 Paiements</div>
     <div class="tab" onclick="showPage('operations')" data-page="operations">📋 Opérations</div>
     <div class="tab" onclick="showPage('stats')" data-page="stats">📊 Statistiques</div>
-    <div class="tab" onclick="showPage('paiements')" data-page="paiements">💰 Paiements</div>
-    <div class="tab" onclick="showPage('scanner')" data-page="scanner">📷 Scanner</div>
     <div class="tab" onclick="showPage('referentiels')" data-page="referentiels">🗃️ Référentiels</div>
     <div class="tab" onclick="showPage('export')" data-page="export">📤 Export</div>
     <div class="tab" onclick="showPage('config')" data-page="config">⚙️ Config</div>
@@ -1045,6 +1110,20 @@
         </div>
       </div>
 
+      <!-- Google Drive -->
+      <div class="card">
+        <div class="card-title">☁️ Google Drive</div>
+        <div id="drive-config-info" style="margin-bottom:12px;"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" id="btn-drive-connect" onclick="showDriveAuthOverlay()">🔑 Connecter Drive</button>
+          <button class="btn btn-ghost btn-sm" id="btn-drive-sync" onclick="syncToDrive()" style="display:none;">🔄 Synchroniser maintenant</button>
+          <button class="btn btn-danger btn-sm" id="btn-drive-disconnect" onclick="disconnectDrive()" style="display:none;">🔌 Déconnecter</button>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.6;">
+          💡 Quand Drive est connecté, chaque enregistrement est écrit simultanément en local et sur votre Drive. Vos données sont toujours accessibles hors connexion.
+        </div>
+      </div>
+
       <!-- Opérateurs -->
       <div class="card">
         <div class="card-title">👷 Opérateurs / Agents du Pont</div>
@@ -1102,11 +1181,12 @@
 
       <div class="card">
         <div class="card-title">ℹ️ À propos</div>
-        <div class="info-row"><span class="ir-key">Application</span><span class="ir-val">PontBascule v2.0</span></div>
-        <div class="info-row"><span class="ir-key">Stockage</span><span class="ir-val">File System Access API</span></div>
+        <div class="info-row"><span class="ir-key">Application</span><span class="ir-val">PontBascule v7.0</span></div>
+        <div class="info-row"><span class="ir-key">Stockage local</span><span class="ir-val">File System Access API</span></div>
+        <div class="info-row"><span class="ir-key">Stockage cloud</span><span class="ir-val">Google Drive (.ndjson)</span></div>
         <div class="info-row"><span class="ir-key">Format données</span><span class="ir-val">NDJSON (.ndjson)</span></div>
-        <div class="info-row"><span class="ir-key">Compatible</span><span class="ir-val">Chrome / Edge 86+</span></div>
-        <div class="info-row"><span class="ir-key">Données illimitées</span><span class="ir-val">✅ Disque local uniquement</span></div>
+        <div class="info-row"><span class="ir-key">Compatible</span><span class="ir-val">Chrome / Edge / Mobile</span></div>
+        <div class="info-row"><span class="ir-key">Données illimitées</span><span class="ir-val">✅ Local + Drive</span></div>
       </div>
     </div>
 
@@ -1164,23 +1244,100 @@
         </div>
       </div>
 
-      <!-- Caméra scanner -->
-      <div class="card" style="padding:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="font-size:13px;font-weight:600;color:var(--gold);">📷 Caméra QR / Code-barres</div>
-          <div style="display:flex;gap:6px;">
-            <button id="btn-start-scan" class="btn btn-success btn-sm" onclick="startQRScanner()">▶ Démarrer</button>
-            <button id="btn-stop-scan" class="btn btn-ghost btn-sm" onclick="stopQRScanner()" style="display:none;">⏹ Arrêter</button>
+      <!-- Recherche par véhicule / producteur -->
+      <div class="card" style="padding:12px;margin-bottom:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:10px;">🚚 Recherche par Véhicule ou Producteur</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Saisissez un numéro de véhicule ou un nom de producteur pour ajouter automatiquement tous les tickets associés.</div>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div class="field">
+            <label>N° Véhicule (immat.)</label>
+            <select id="search-vehicule" style="font-family:'DM Mono',monospace;">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Ou Producteur</label>
+            <select id="search-producteur">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Du</label>
+            <input type="date" id="search-date-from">
+          </div>
+          <div class="field">
+            <label>Au</label>
+            <input type="date" id="search-date-to">
           </div>
         </div>
-        <!-- Viewfinder -->
-        <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;background:#000;min-height:200px;"></div>
-        <div id="scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;">Appuyez sur Démarrer pour activer la caméra</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="rechercherParVehicule()">🔍 Ajouter au panier</button>
+          <button class="btn btn-ghost btn-sm" onclick="previsualiserVehicule()">👁 Aperçu tickets</button>
+        </div>
+        <div id="vehicule-search-result" style="margin-top:10px;display:none;"></div>
+      </div>
 
-        <!-- Saisie manuelle en fallback -->
-        <div style="margin-top:10px;display:flex;gap:8px;">
-          <input type="text" id="scan-ticket-input" placeholder="Ou saisir/coller le N° ticket manuellement..." style="flex:1;font-family:'DM Mono',monospace;font-size:12px;">
-          <button class="btn btn-primary btn-sm" onclick="ajouterTicketManuel()">+ Ajouter</button>
+      <!-- Scanner QR Code -->
+      <div class="card" style="padding:12px;">
+        <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:10px;">📷 Scanner QR Code</div>
+
+        <!-- Explainer accès caméra -->
+        <div id="scan-mode-info" style="background:rgba(66,165,245,0.1);border:1px solid rgba(66,165,245,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:var(--blue);line-height:1.6;">
+          ℹ️ <strong>3 façons de scanner :</strong><br>
+          <span style="color:var(--text2);">① Caméra live (nécessite HTTPS/localhost) &nbsp;② Photo de la caméra (fonctionne partout) &nbsp;③ Saisie manuelle du numéro</span>
+        </div>
+
+        <!-- Onglets modes -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <button id="mode-btn-live" class="btn btn-sm" onclick="setScanMode('live')" style="flex:1;font-size:11px;background:var(--gold);color:#1a1a0a;">📡 Live</button>
+          <button id="mode-btn-photo" class="btn btn-sm btn-ghost" onclick="setScanMode('photo')" style="flex:1;font-size:11px;">📸 Photo</button>
+          <button id="mode-btn-manuel" class="btn btn-sm btn-ghost" onclick="setScanMode('manuel')" style="flex:1;font-size:11px;">⌨️ Manuel</button>
+        </div>
+
+        <!-- MODE LIVE -->
+        <div id="scan-mode-live">
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button id="btn-start-scan" class="btn btn-success btn-sm" style="flex:1;" onclick="startQRScanner()">▶ Démarrer la caméra</button>
+            <button id="btn-stop-scan" class="btn btn-ghost btn-sm" onclick="stopQRScanner()" style="display:none;flex:1;">⏹ Arrêter</button>
+          </div>
+          <!-- Viewfinder -->
+          <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;min-height:220px;">
+            <video id="scan-video" style="width:100%;display:block;" playsinline autoplay muted></video>
+            <canvas id="scan-canvas" style="display:none;"></canvas>
+            <!-- Viseur -->
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+              <div style="width:200px;height:200px;border:3px solid var(--gold);border-radius:12px;box-shadow:0 0 0 2000px rgba(0,0,0,0.4);"></div>
+            </div>
+          </div>
+          <div id="scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;">Appuyez sur Démarrer pour activer la caméra</div>
+        </div>
+
+        <!-- MODE PHOTO (capture native caméra, fonctionne partout) -->
+        <div id="scan-mode-photo" style="display:none;">
+          <div style="text-align:center;padding:8px 0;">
+            <label for="scan-photo-input" style="display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:#1a1a0a;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;">
+              📸 Prendre une photo du QR code
+            </label>
+            <input type="file" id="scan-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="decodePhotoQR(this)">
+            <input type="file" id="scan-photo-gallery" accept="image/*" style="display:none;" onchange="decodePhotoQR(this)">
+          </div>
+          <div style="margin-top:8px;text-align:center;">
+            <label for="scan-photo-gallery" style="font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline;">ou choisir depuis la galerie</label>
+          </div>
+          <div id="scan-photo-preview" style="margin-top:10px;text-align:center;display:none;">
+            <img id="scan-photo-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border);">
+            <div id="scan-photo-status" style="font-size:12px;margin-top:6px;"></div>
+          </div>
+          <canvas id="scan-decode-canvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- MODE MANUEL -->
+        <div id="scan-mode-manuel" style="display:none;">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Saisissez ou collez le numéro de ticket (ex: <span style="font-family:'DM Mono',monospace;color:var(--gold);">TRP-20240115-042</span> ou juste le N° de séquence)</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="scan-ticket-input" placeholder="Numéro ou N° séquence..." style="flex:1;font-family:'DM Mono',monospace;font-size:13px;" onkeydown="if(event.key==='Enter')ajouterTicketManuel()">
+            <button class="btn btn-primary" onclick="ajouterTicketManuel()">+ Ajouter</button>
+          </div>
         </div>
       </div>
 
@@ -1228,6 +1385,33 @@
 
   </div><!-- end #content -->
 </div><!-- end #app -->
+
+<!-- GOOGLE DRIVE AUTH OVERLAY -->
+<div id="drive-auth-overlay" class="open">
+  <div class="drive-auth-logo">🌾</div>
+  <div class="drive-auth-title">Pont Bascule</div>
+  <div class="drive-auth-sub">
+    Connectez-vous à Google Drive pour synchroniser vos données<br>
+    sur tous vos appareils (téléphone, ordinateur).<br>
+    <span style="font-size:12px;color:var(--text3);">Les données sont aussi sauvegardées en local.</span>
+  </div>
+  <div id="google-signin-btn-container" style="margin-bottom:20px;">
+    <div id="google-signin-btn" style="display:inline-flex;align-items:center;gap:12px;background:#fff;color:#3c4043;border:none;border-radius:8px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);" onclick="signInWithGoogle()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Se connecter avec Google
+    </div>
+  </div>
+  <div id="drive-auth-loading" style="display:none;color:var(--text2);font-size:13px;">
+    <div class="spinner" style="display:inline-block;margin-right:8px;"></div> Connexion en cours...
+  </div>
+  <div id="drive-auth-error" style="display:none;color:var(--red);font-size:12px;margin-top:8px;max-width:360px;"></div>
+  <div class="skip-drive-link" onclick="skipDriveAuth()">Continuer sans Drive (données locales uniquement)</div>
+  <div style="margin-top:28px;padding:14px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;font-size:11px;color:var(--text3);max-width:380px;line-height:1.7;">
+    🔒 <strong style="color:var(--gold);">Vos données restent privées.</strong><br>
+    L'application stocke uniquement dans votre propre Google Drive.<br>
+    Compatible GitHub Pages · localhost · téléphone · ordinateur
+  </div>
+</div>
 
 <!-- FILE PICKER OVERLAY -->
 <div id="file-picker-overlay">
@@ -1315,6 +1499,20 @@
 
 <script>
 // ================================================================
+// GOOGLE DRIVE CONFIG
+// ================================================================
+const GOOGLE_CLIENT_ID = '370696807183-ojaufvcgsegt8if5d75nj60qf0eu718a.apps.googleusercontent.com';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE_NAME = 'pont_bascule_data.ndjson';
+const DRIVE_FOLDER_NAME = 'PontBascule';
+
+let googleTokenClient = null;
+let driveAccessToken = null;
+let driveFileId = null;
+let driveConnected = false;
+let gapiReady = false;
+
+// ================================================================
 // ÉTAT GLOBAL
 // ================================================================
 let fileHandle = null;
@@ -1330,7 +1528,6 @@ let filteredOps = [];
 let historiquePrix = [];
 let paiementsData = {};
 let panier = [];
-let qrScanner = null;
 
 const REFS_KEY = '__refs__';
 const CONFIG_KEY = '__config__';
@@ -1342,7 +1539,354 @@ window.onload = async () => {
   setDefaultDate();
   loadLocalConfig();
   renderPendingOps();
+  updateDriveStatus();
+  // Tenter reconnexion silencieuse via session
+  const savedToken = sessionStorage.getItem('drive_token');
+  if(savedToken) {
+    driveAccessToken = savedToken;
+    driveConnected = true;
+    gapi.load && gapi.load('client', async () => {
+      await gapi.client.init({});
+      gapi.client.setToken({ access_token: driveAccessToken });
+      gapiReady = true;
+    });
+    driveFileId = sessionStorage.getItem('drive_file_id') || null;
+    updateDriveStatus();
+    document.getElementById('drive-auth-overlay').classList.remove('open');
+    if(driveFileId) {
+      setTimeout(async () => {
+        await loadFromDrive();
+        populateScannerSelects();
+      }, 800);
+    }
+  }
+  // Afficher l'écran de connexion Drive au démarrage si pas de token
+  // L'overlay est ouvert par défaut dans le HTML, on le ferme si déjà connecté ci-dessus
 };
+
+// ================================================================
+// GOOGLE DRIVE — AUTH
+// ================================================================
+function gapiLoaded() {
+  gapi.load('client', async () => {
+    await gapi.client.init({});
+    gapiReady = true;
+  });
+}
+
+function signInWithGoogle() {
+  document.getElementById('drive-auth-loading').style.display = 'block';
+  document.getElementById('google-signin-btn').style.display = 'none';
+  document.getElementById('drive-auth-error').style.display = 'none';
+
+  if(typeof google === 'undefined' || !google.accounts) {
+    // Retry when GIS loads
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => setTimeout(signInWithGoogle, 500);
+    document.head.appendChild(script);
+    return;
+  }
+
+  try {
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPES,
+      callback: async (tokenResponse) => {
+        if (tokenResponse.error) {
+          showDriveAuthError('Erreur de connexion : ' + tokenResponse.error);
+          return;
+        }
+        driveAccessToken = tokenResponse.access_token;
+        sessionStorage.setItem('drive_token', driveAccessToken);
+        if(!gapiReady) {
+          await new Promise(res => gapi.load('client', async () => { await gapi.client.init({}); gapiReady=true; res(); }));
+        }
+        gapi.client.setToken({ access_token: driveAccessToken });
+        driveConnected = true;
+        // Récupérer email
+        try {
+          const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {headers:{Authorization:'Bearer '+driveAccessToken}});
+          const u = await r.json();
+          sessionStorage.setItem('drive_email', u.email||'');
+        } catch(e){}
+        updateDriveStatus();
+        document.getElementById('drive-auth-overlay').classList.remove('open');
+        showToast('✅ Connecté à Google Drive !', 'success');
+        await initDriveFile();
+        populateScannerSelects();
+      },
+      error_callback: (err) => {
+        showDriveAuthError('Connexion annulée ou refusée.');
+      }
+    });
+    googleTokenClient.requestAccessToken({ prompt: '' });
+  } catch(e) {
+    showDriveAuthError('Google Sign-In non disponible. Vérifiez votre connexion internet.');
+    console.error('Google auth error:', e);
+  }
+}
+
+function showDriveAuthError(msg) {
+  document.getElementById('drive-auth-loading').style.display = 'none';
+  document.getElementById('google-signin-btn').style.display = 'flex';
+  const el = document.getElementById('drive-auth-error');
+  el.style.display = 'block';
+  el.textContent = '⚠️ ' + msg;
+}
+
+function showDriveAuthOverlay() {
+  document.getElementById('drive-auth-loading').style.display = 'none';
+  document.getElementById('google-signin-btn').style.display = 'flex';
+  document.getElementById('drive-auth-error').style.display = 'none';
+  document.getElementById('drive-auth-overlay').classList.add('open');
+}
+
+function skipDriveAuth() {
+  document.getElementById('drive-auth-overlay').classList.remove('open');
+  showToast('Mode local uniquement — Drive non connecté', '');
+}
+
+function updateDriveStatus() {
+  const btn = document.getElementById('drive-status-btn');
+  const txt = document.getElementById('drive-status-text');
+  const email = sessionStorage.getItem('drive_email') || '';
+  if (driveConnected) {
+    btn.classList.add('connected');
+    txt.textContent = email ? email.split('@')[0] : 'Drive ✓';
+  } else {
+    btn.classList.remove('connected');
+    txt.textContent = 'Drive';
+  }
+  // Config page elements
+  const connectBtn = document.getElementById('btn-drive-connect');
+  const syncBtn = document.getElementById('btn-drive-sync');
+  const discBtn = document.getElementById('btn-drive-disconnect');
+  const infoEl = document.getElementById('drive-config-info');
+  if(driveConnected) {
+    if(connectBtn) connectBtn.style.display = 'none';
+    if(syncBtn) syncBtn.style.display = 'inline-flex';
+    if(discBtn) discBtn.style.display = 'inline-flex';
+    if(infoEl) infoEl.innerHTML = `<div class="alert alert-success">✅ Connecté${email ? ' : <strong>'+email+'</strong>' : ''}</div><div class="info-row"><span class="ir-key">Fichier</span><span class="ir-val">${DRIVE_FILE_NAME}</span></div>`;
+  } else {
+    if(connectBtn) connectBtn.style.display = 'inline-flex';
+    if(syncBtn) syncBtn.style.display = 'none';
+    if(discBtn) discBtn.style.display = 'none';
+    if(infoEl) infoEl.innerHTML = `<div class="alert alert-warn">⚠️ Non connecté à Google Drive.</div>`;
+  }
+}
+
+function disconnectDrive() {
+  driveAccessToken = null;
+  driveFileId = null;
+  driveConnected = false;
+  sessionStorage.removeItem('drive_token');
+  sessionStorage.removeItem('drive_email');
+  sessionStorage.removeItem('drive_file_id');
+  updateDriveStatus();
+  showToast('🔌 Drive déconnecté', '');
+}
+
+async function syncToDrive() {
+  if(!driveConnected || !driveFileId) { showToast('⚠️ Drive non connecté', 'error'); return; }
+  const lines = [];
+  lines.push(JSON.stringify({type:'config', data: config}));
+  lines.push(JSON.stringify({type:'refs', data: refs}));
+  for(const p of historiquePrix) lines.push(JSON.stringify({type:'prix', data: p}));
+  for(const op of allOperations) lines.push(JSON.stringify(op));
+  for(const [tid, pay] of Object.entries(paiementsData)) lines.push(JSON.stringify(pay));
+  await saveToDrive(lines.join('\n') + '\n');
+  showToast('✅ Sync Drive réussie !', 'success');
+}
+
+// ================================================================
+// GOOGLE DRIVE — FICHIER
+// ================================================================
+async function driveRequest(method, url, body, extraHeaders) {
+  if (!driveAccessToken) return null;
+  const headers = { 'Authorization': 'Bearer ' + driveAccessToken, ...extraHeaders };
+  const opts = { method, headers };
+  if (body !== undefined) opts.body = body;
+  try {
+    const res = await fetch(url, opts);
+    if (res.status === 401) {
+      // Token expiré
+      driveConnected = false;
+      updateDriveStatus();
+      showToast('⚠️ Session Drive expirée. Reconnectez-vous.', 'error');
+      return null;
+    }
+    return res;
+  } catch(e) {
+    console.warn('Drive request error:', e);
+    return null;
+  }
+}
+
+async function initDriveFile() {
+  showToast('🔍 Recherche du fichier Drive...', '');
+  // Chercher le fichier existant
+  const res = await driveRequest('GET',
+    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}' and trashed=false&fields=files(id,name,modifiedTime)&spaces=drive`
+  );
+  if (!res) return;
+  const data = await res.json();
+  if (data.files && data.files.length > 0) {
+    driveFileId = data.files[0].id;
+    showToast('📂 Fichier Drive trouvé — Chargement...', '');
+    await loadFromDrive();
+  } else {
+    showToast('✨ Création du fichier Drive...', '');
+    await createDriveFile();
+  }
+}
+
+async function createDriveFile() {
+  const initContent = JSON.stringify({type:'init', date: new Date().toISOString(), refs, config}) + '\n';
+  const metadata = { name: DRIVE_FILE_NAME, mimeType: 'application/x-ndjson' };
+  const boundary = '-------314159265358979323846';
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/x-ndjson\r\n\r\n${initContent}\r\n--${boundary}--`;
+  const res = await driveRequest('POST',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    body,
+    { 'Content-Type': `multipart/related; boundary="${boundary}"` }
+  );
+  if (!res) return;
+  const data = await res.json();
+  driveFileId = data.id;
+  showToast('✅ Fichier Drive créé !', 'success');
+}
+
+async function loadFromDrive() {
+  if (!driveFileId || !driveAccessToken) return;
+  const res = await driveRequest('GET',
+    `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`
+  );
+  if (!res) return;
+  const text = await res.text();
+  parseNdjsonText(text);
+  updateFileStatus();
+  updateNoFileAlert();
+  populateSelectsFromRefs();
+  loadConfigToForm();
+  populateScannerSelects();
+  showToast(`✅ Drive: ${allOperations.length} opérations chargées`, 'success');
+}
+
+async function saveToDrive(fullContent) {
+  if (!driveFileId || !driveAccessToken) return;
+  const res = await driveRequest('PATCH',
+    `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+    fullContent,
+    { 'Content-Type': 'application/x-ndjson' }
+  );
+  if (res && res.ok) {
+    // Drive save OK - silent
+  }
+}
+
+async function appendToDrive(record) {
+  if (!driveFileId || !driveAccessToken) return;
+  // Lire le contenu actuel, ajouter la ligne
+  const res = await driveRequest('GET',
+    `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`
+  );
+  if (!res) return;
+  const existing = await res.text();
+  const newContent = existing + JSON.stringify(record) + '\n';
+  await saveToDrive(newContent);
+}
+
+function parseNdjsonText(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  allOperations = [];
+  historiquePrix = [];
+  paiementsData = {};
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.type === 'operation') allOperations.push(obj);
+      else if (obj.type === 'refs') { const merged = {...refs, ...obj.data}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
+      else if (obj.type === 'init' && obj.refs) { const merged = {...refs, ...obj.refs}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
+      else if (obj.type === 'init' && obj.config) config = {...config, ...obj.config};
+      else if (obj.type === 'config') config = {...config, ...obj.data};
+      else if (obj.type === 'prix') historiquePrix.push(obj.data);
+      else if (obj.type === 'paiement') paiementsData[obj.ticketId] = obj;
+    } catch(e){}
+  }
+  historiquePrix.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+}
+
+// ================================================================
+// OVERRIDE appendToFile — écrit LOCAL + DRIVE
+// ================================================================
+async function appendToFile(record) {
+  let localOk = false;
+  // 1. Écriture locale (File System API)
+  if (fileHandle) {
+    try {
+      const perm = await fileHandle.queryPermission({mode:'readwrite'});
+      let granted = perm === 'granted';
+      if (!granted) {
+        const req = await fileHandle.requestPermission({mode:'readwrite'});
+        granted = req === 'granted';
+      }
+      if (granted) {
+        const file = await fileHandle.getFile();
+        const existingText = await file.text();
+        const newLine = JSON.stringify(record) + '\n';
+        const writable = await fileHandle.createWritable();
+        await writable.write(existingText + newLine);
+        await writable.close();
+        localOk = true;
+      }
+    } catch(e) { console.warn('Local write error:', e); }
+  }
+
+  // 2. Écriture Drive (async, non-bloquant)
+  if (driveConnected) {
+    appendToDrive(record).catch(e => console.warn('Drive append error:', e));
+    if (!localOk) localOk = true; // Drive seul suffit
+  }
+
+  if (!localOk && !driveConnected) {
+    showToast('⚠️ Aucun stockage disponible ! Connectez Drive ou ouvrez un fichier.', 'error');
+    return false;
+  }
+  return true;
+}
+
+// ================================================================
+// OVERRIDE rewriteFile — réécrit LOCAL + DRIVE
+// ================================================================
+async function rewriteFile() {
+  const lines = [];
+  lines.push(JSON.stringify({type:'config', data: config}));
+  lines.push(JSON.stringify({type:'refs', data: refs}));
+  for(const p of historiquePrix) lines.push(JSON.stringify({type:'prix', data: p}));
+  for(const op of allOperations) lines.push(JSON.stringify(op));
+  for(const [tid, pay] of Object.entries(paiementsData)) lines.push(JSON.stringify(pay));
+  const fullContent = lines.join('\n') + '\n';
+
+  // Local
+  if (fileHandle) {
+    try {
+      const perm = await fileHandle.queryPermission({mode:'readwrite'});
+      if (perm === 'granted' || (await fileHandle.requestPermission({mode:'readwrite'})) === 'granted') {
+        const writable = await fileHandle.createWritable();
+        await writable.write(fullContent);
+        await writable.close();
+      }
+    } catch(e) { console.warn('Local rewrite error:', e); }
+  }
+
+  // Drive
+  if (driveConnected) {
+    saveToDrive(fullContent).catch(e => console.warn('Drive rewrite error:', e));
+  }
+
+  return true;
+}
 
 // ================================================================
 // OPÉRATIONS EN ATTENTE (1er poids sans tare)
@@ -1379,7 +1923,7 @@ function renderPendingOps() {
 }
 
 function savePendingOp() {
-  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const brut = parseFloat(document.getElementById('poids-brut').value);
   if(!brut || brut <= 0) { showToast('Saisir le poids brut (1ère pesée)', 'error'); return; }
   const produit = document.getElementById('op-produit').value;
@@ -1550,87 +2094,40 @@ async function loadFileData() {
   try {
     const file = await fileHandle.getFile();
     const text = await file.text();
-    const lines = text.trim().split('\n').filter(l => l.trim());
-    allOperations = [];
-    historiquePrix = [];
-    paiementsData = {};
-    for(const line of lines) {
-      try {
-        const obj = JSON.parse(line);
-        if(obj.type === 'operation') allOperations.push(obj);
-        else if(obj.type === 'refs') { const merged = {...refs, ...obj.data}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
-        else if(obj.type === 'init' && obj.refs) { const merged = {...refs, ...obj.refs}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
-        else if(obj.type === 'init' && obj.config) config = {...config, ...obj.config};
-        else if(obj.type === 'config') config = {...config, ...obj.data};
-        else if(obj.type === 'prix') historiquePrix.push(obj.data);
-        else if(obj.type === 'paiement') paiementsData[obj.ticketId] = obj;
-      } catch(e){}
-    }
-    // Sort prix by date desc
-    historiquePrix.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    parseNdjsonText(text);
     updateFileStatus();
     updateNoFileAlert();
     populateSelectsFromRefs();
     loadConfigToForm();
-    showToast(`✅ ${allOperations.length} opérations chargées`, 'success');
+    populateScannerSelects();
+    showToast(`✅ ${allOperations.length} opérations chargées (local)`, 'success');
   } catch(e) { showToast('Erreur lecture: ' + e.message, 'error'); }
-}
-
-async function appendToFile(record) {
-  if(!fileHandle) { showToast('⚠️ Aucun fichier ouvert !', 'error'); return false; }
-  try {
-    // Verify permission
-    const perm = await fileHandle.queryPermission({mode:'readwrite'});
-    if(perm !== 'granted') {
-      const req = await fileHandle.requestPermission({mode:'readwrite'});
-      if(req !== 'granted') { showToast('Permission refusée', 'error'); return false; }
-    }
-    const file = await fileHandle.getFile();
-    const existingText = await file.text();
-    const newLine = JSON.stringify(record) + '\n';
-    const writable = await fileHandle.createWritable();
-    await writable.write(existingText + newLine);
-    await writable.close();
-    return true;
-  } catch(e) { showToast('Erreur écriture: ' + e.message, 'error'); return false; }
-}
-
-async function rewriteFile() {
-  if(!fileHandle) return false;
-  try {
-    const perm = await fileHandle.queryPermission({mode:'readwrite'});
-    if(perm !== 'granted') await fileHandle.requestPermission({mode:'readwrite'});
-    const writable = await fileHandle.createWritable();
-    const lines = [];
-    lines.push(JSON.stringify({type:'config', data: config}));
-    lines.push(JSON.stringify({type:'refs', data: refs}));
-    for(const p of historiquePrix) lines.push(JSON.stringify({type:'prix', data: p}));
-    for(const op of allOperations) lines.push(JSON.stringify(op));
-    for(const [tid, pay] of Object.entries(paiementsData)) lines.push(JSON.stringify(pay));
-    await writable.write(lines.join('\n') + '\n');
-    await writable.close();
-    return true;
-  } catch(e) { showToast('Erreur sauvegarde: ' + e.message, 'error'); return false; }
 }
 
 function updateFileStatus() {
   const btn = document.getElementById('file-status-btn');
   const txt = document.getElementById('file-status-text');
+  const hasStorage = fileHandle || driveConnected;
   if(fileHandle) {
     btn.classList.add('connected');
     txt.textContent = fileHandle.name.length > 20 ? '...' + fileHandle.name.slice(-17) : fileHandle.name;
-    document.getElementById('file-info-display').innerHTML = `
-      <div class="info-row"><span class="ir-key">Fichier</span><span class="ir-val">${fileHandle.name}</span></div>
-      <div class="info-row"><span class="ir-key">Opérations</span><span class="ir-val">${allOperations.length}</span></div>
-    `;
+  } else if(driveConnected) {
+    btn.classList.add('connected');
+    txt.textContent = 'Drive sync';
   } else {
     btn.classList.remove('connected');
     txt.textContent = 'Aucun fichier';
   }
+  document.getElementById('file-info-display').innerHTML = `
+    <div class="info-row"><span class="ir-key">Fichier local</span><span class="ir-val">${fileHandle ? fileHandle.name : '—'}</span></div>
+    <div class="info-row"><span class="ir-key">Google Drive</span><span class="ir-val">${driveConnected ? '✅ Connecté' : '—'}</span></div>
+    <div class="info-row"><span class="ir-key">Opérations</span><span class="ir-val">${allOperations.length}</span></div>
+  `;
 }
 
 function updateNoFileAlert() {
-  document.getElementById('no-file-alert').style.display = fileHandle ? 'none' : 'flex';
+  const hasStorage = fileHandle || driveConnected;
+  document.getElementById('no-file-alert').style.display = hasStorage ? 'none' : 'flex';
 }
 
 function fallbackAlert() {
@@ -1662,7 +2159,7 @@ function fmtKg(v) {
 }
 
 async function saveOperation() {
-  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const brut = parseFloat(document.getElementById('poids-brut').value);
   const tare = parseFloat(document.getElementById('poids-tare').value);
   if(!brut) { showToast('Saisir le poids brut', 'error'); return; }
@@ -2176,6 +2673,21 @@ function populateSelectsFromRefs() {
   populateSelect('op-vehicule', refs.vehicules);
   populateSelect('export-produit', refs.produits);
   populateSelect('new-chauffeur-vehicule', refs.vehicules);
+  populateScannerSelects();
+}
+
+function populateScannerSelects() {
+  // Construire listes dynamiques depuis les opérations ET les référentiels
+  const vehiculesOps = [...new Set(allOperations.map(o => o.vehicule).filter(Boolean))];
+  const vehiculesRefs = refs.vehicules || [];
+  const allVehicules = [...new Set([...vehiculesRefs, ...vehiculesOps])].sort();
+
+  const produceursOps = [...new Set(allOperations.map(o => o.fournisseur).filter(Boolean))];
+  const produceursRefs = refs.fournisseurs || [];
+  const allProducteurs = [...new Set([...produceursRefs, ...produceursOps])].sort();
+
+  populateSelect('search-vehicule', allVehicules);
+  populateSelect('search-producteur', allProducteurs);
 }
 
 function populateSelect(id, items) {
@@ -2437,7 +2949,7 @@ function updatePrixPreview() {
 }
 
 async function savePrix() {
-  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const graine = parseFloat(document.getElementById('cfg-prix-graine').value);
   const transport = parseFloat(document.getElementById('cfg-prix-transport').value);
   const date = document.getElementById('cfg-prix-date').value;
@@ -2647,7 +3159,7 @@ async function togglePaiement(ticketId, checkbox, opId) {
 }
 
 async function marquerPayement(tId, opId, paye) {
-  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const record = {
     type: 'paiement',
     ticketId: tId,
@@ -2679,8 +3191,136 @@ async function confirmerDecocher() {
 }
 
 // ================================================================
-// SCANNER CAMÉRA — html5-qrcode + PANIER
+// RECHERCHE PAR VÉHICULE / PRODUCTEUR
 // ================================================================
+function getTicketsFiltresParVehicule(vehicule, producteur, dateFrom, dateTo) {
+  return allOperations.filter(op => {
+    // Filtre véhicule OU producteur
+    let match = false;
+    if (vehicule && op.vehicule === vehicule) match = true;
+    if (producteur && op.fournisseur === producteur) match = true;
+    if (!vehicule && !producteur) return false;
+    if (!match) return false;
+    // Filtre période
+    if (dateFrom && op.date && op.date.slice(0,10) < dateFrom) return false;
+    if (dateTo && op.date && op.date.slice(0,10) > dateTo) return false;
+    return true;
+  });
+}
+
+function previsualiserVehicule() {
+  const vehicule = document.getElementById('search-vehicule').value;
+  const producteur = document.getElementById('search-producteur').value;
+  const dateFrom = document.getElementById('search-date-from').value;
+  const dateTo = document.getElementById('search-date-to').value;
+
+  if (!vehicule && !producteur) {
+    showToast('Sélectionnez un véhicule ou un producteur', 'error');
+    return;
+  }
+
+  const ops = getTicketsFiltresParVehicule(vehicule, producteur, dateFrom, dateTo);
+  const resultEl = document.getElementById('vehicule-search-result');
+  resultEl.style.display = 'block';
+
+  if (ops.length === 0) {
+    resultEl.innerHTML = `<div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);border-radius:8px;padding:10px;font-size:12px;color:var(--red);">❌ Aucun ticket trouvé pour ces critères.</div>`;
+    return;
+  }
+
+  // Grouper par transporteur identique
+  const groupe = document.getElementById('filter-pay-groupe') ? document.getElementById('filter-pay-groupe').value : 'transporteur';
+  const role = vehicule ? 'transporteur' : 'producteur';
+
+  let totalKg = 0;
+  let deja = 0;
+  const rows = ops.map(op => {
+    const tId = ticketId(role, op);
+    const pay = paiementsData[tId];
+    const paye = pay && pay.paye;
+    const kg = op.poidsnet || 0;
+    totalKg += kg;
+    if (paye) deja++;
+    const montant = calcMontantTicket(op, role === 'transporteur' ? 'transporteur' : 'producteur');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:${paye?'rgba(76,175,80,0.08)':'var(--surface2)'};border:1px solid ${paye?'rgba(76,175,80,0.3)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;">
+      <div>
+        <span style="color:var(--gold);font-weight:600;">N°${op.seq}</span>
+        <span style="color:var(--text2);margin-left:6px;">${new Date(op.date).toLocaleDateString('fr-FR')}</span>
+        <span style="color:var(--text3);margin-left:6px;">${op.produit}</span>
+      </div>
+      <div style="text-align:right;">
+        <span style="color:var(--green2);font-family:'DM Mono',monospace;">${(kg/1000).toFixed(3)} t</span>
+        <span style="color:var(--text3);margin-left:4px;">${montant.toLocaleString('fr-FR')} F</span>
+        ${paye ? '<span style="color:var(--green2);margin-left:4px;">✅</span>' : '<span style="color:var(--gold);margin-left:4px;">⏳</span>'}
+      </div>
+    </div>`;
+  }).join('');
+
+  resultEl.innerHTML = `
+    <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px;">
+      <strong style="color:var(--gold);">${ops.length} ticket(s)</strong> trouvé(s) 
+      ${vehicule ? `· Véhicule <span style="font-family:'DM Mono',monospace;">${vehicule}</span>` : ''}
+      ${producteur ? `· Producteur <strong>${producteur}</strong>` : ''}
+      · <span style="color:var(--green2);">${(totalKg/1000).toFixed(3)} t</span>
+      · <span style="color:var(--red);">${deja} déjà payé(s)</span>
+    </div>
+    ${rows}
+  `;
+}
+
+function rechercherParVehicule() {
+  const vehicule = document.getElementById('search-vehicule').value;
+  const producteur = document.getElementById('search-producteur').value;
+  const dateFrom = document.getElementById('search-date-from').value;
+  const dateTo = document.getElementById('search-date-to').value;
+
+  if (!vehicule && !producteur) {
+    showToast('Sélectionnez un véhicule ou un producteur', 'error');
+    return;
+  }
+
+  const ops = getTicketsFiltresParVehicule(vehicule, producteur, dateFrom, dateTo);
+  if (ops.length === 0) {
+    showToast('❌ Aucun ticket trouvé', 'error');
+    return;
+  }
+
+  const role = vehicule ? 'transporteur' : 'producteur';
+  let ajoutés = 0;
+  let déjàPayés = 0;
+  let doublons = 0;
+
+  for (const op of ops) {
+    const tId = ticketId(role, op);
+    // Vérifier si déjà payé
+    const pay = paiementsData[tId];
+    if (pay && pay.paye) { déjàPayés++; continue; }
+    // Vérifier doublon panier
+    if (panier.find(p => p.ticketId === tId)) { doublons++; continue; }
+    panier.push({ ticketId: tId, op, role });
+    ajoutés++;
+  }
+
+  renderPanier();
+
+  let msg = `✅ ${ajoutés} ticket(s) ajouté(s) au panier`;
+  if (déjàPayés) msg += ` · ${déjàPayés} déjà payé(s) ignoré(s)`;
+  if (doublons) msg += ` · ${doublons} doublon(s)`;
+  showToast(msg, ajoutés > 0 ? 'success' : '');
+
+  // Aperçu résultat
+  previsualiserVehicule();
+}
+
+// ================================================================
+// SCANNER MULTI-MODE — jsQR + capture native + manuel
+// ================================================================
+let scanMode = 'live';
+let scanVideoStream = null;
+let scanAnimFrame = null;
+let scanLastCode = '';
+let scanLastTime = 0;
+
 function initScanner() {
   const prixActuel = getPrixActuel();
   if(prixActuel) {
@@ -2693,48 +3333,160 @@ function initScanner() {
     document.getElementById('scan-prix-badge').textContent = 'Aucun prix configuré';
   }
   renderPanier();
+  populateScannerSelects();
+  // Auto-détecter si live possible, sinon basculer sur photo
+  if(!window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    setScanMode('photo');
+    document.getElementById('scan-mode-info').innerHTML =
+      '⚠️ <strong>Mode Caméra Live non disponible</strong> (page non-HTTPS).<br>' +
+      '<span style="color:var(--text2);">Utilisez <strong>📸 Photo</strong> : appuyez sur le bouton pour ouvrir la caméra et prendre une photo du QR code — ça fonctionne partout !</span>';
+    document.getElementById('scan-mode-info').style.borderColor = 'rgba(201,168,76,0.5)';
+    document.getElementById('scan-mode-info').style.background = 'rgba(201,168,76,0.1)';
+    document.getElementById('scan-mode-info').style.color = 'var(--gold)';
+  }
 }
 
-function startQRScanner() {
-  if(!window.Html5Qrcode) { showToast('⚠️ Bibliothèque QR non chargée', 'error'); return; }
-  if(qrScanner) stopQRScanner();
+function setScanMode(mode) {
+  if(scanMode === 'live' && mode !== 'live') stopQRScanner();
+  scanMode = mode;
+  ['live','photo','manuel'].forEach(m => {
+    document.getElementById('scan-mode-' + m).style.display = m === mode ? 'block' : 'none';
+    const btn = document.getElementById('mode-btn-' + m);
+    if(m === mode) { btn.style.background = 'var(--gold)'; btn.style.color = '#1a1a0a'; btn.className = 'btn btn-sm'; }
+    else { btn.style.background = ''; btn.style.color = ''; btn.className = 'btn btn-sm btn-ghost'; }
+  });
+}
 
+// ---- MODE LIVE (WebRTC — nécessite HTTPS ou localhost) ----
+function startQRScanner() {
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    document.getElementById('scan-status').innerHTML =
+      '❌ Caméra non disponible sur cette page.<br><span style="color:var(--gold);">→ Utilisez le mode 📸 Photo ci-dessus !</span>';
+    return;
+  }
   document.getElementById('btn-start-scan').style.display = 'none';
   document.getElementById('btn-stop-scan').style.display = 'inline-flex';
   document.getElementById('scan-status').textContent = '🔍 Initialisation caméra...';
 
-  qrScanner = new Html5Qrcode('qr-reader');
-  const config_qr = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+  const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } };
 
-  qrScanner.start(
-    { facingMode: 'environment' },
-    config_qr,
-    (decodedText) => {
-      // Succès scan
-      beepScan();
-      ajouterTicketAuPanier(decodedText.trim());
-    },
-    (errorMsg) => { /* scan en cours, ignorer */ }
-  ).then(() => {
-    document.getElementById('scan-status').textContent = '✅ Caméra active — Pointez vers le QR code du ticket';
+  navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+    scanVideoStream = stream;
+    const video = document.getElementById('scan-video');
+    video.srcObject = stream;
+    video.play();
+    video.onloadedmetadata = () => {
+      document.getElementById('scan-status').textContent = '✅ Caméra active — Pointez vers le QR code';
+      tickScanLive();
+    };
   }).catch(err => {
-    document.getElementById('scan-status').textContent = '❌ Erreur caméra: ' + err;
+    let msg = '❌ Accès caméra refusé.';
+    if(err.name === 'NotAllowedError') msg = '❌ Permission caméra refusée.<br><span style="color:var(--gold);">→ Utilisez le mode 📸 Photo !</span>';
+    else if(err.name === 'NotFoundError') msg = '❌ Aucune caméra détectée.';
+    else msg = '❌ Erreur: ' + err.message + '<br><span style="color:var(--gold);">→ Utilisez le mode 📸 Photo !</span>';
+    document.getElementById('scan-status').innerHTML = msg;
     document.getElementById('btn-start-scan').style.display = 'inline-flex';
     document.getElementById('btn-stop-scan').style.display = 'none';
-    qrScanner = null;
   });
 }
 
-function stopQRScanner() {
-  if(qrScanner) {
-    qrScanner.stop().catch(()=>{});
-    qrScanner = null;
+function tickScanLive() {
+  const video = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  if(!scanVideoStream || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    scanAnimFrame = requestAnimationFrame(tickScanLive);
+    return;
   }
-  document.getElementById('btn-start-scan').style.display = 'inline-flex';
-  document.getElementById('btn-stop-scan').style.display = 'none';
-  document.getElementById('scan-status').textContent = 'Scanner arrêté';
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if(window.jsQR) {
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+    if(code && code.data) {
+      const now = Date.now();
+      // Anti-doublon: même code dans les 3 secondes
+      if(code.data !== scanLastCode || now - scanLastTime > 3000) {
+        scanLastCode = code.data;
+        scanLastTime = now;
+        beepScan();
+        ajouterTicketAuPanier(code.data.trim());
+      }
+    }
+  }
+  scanAnimFrame = requestAnimationFrame(tickScanLive);
 }
 
+function stopQRScanner() {
+  if(scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
+  if(scanVideoStream) {
+    scanVideoStream.getTracks().forEach(t => t.stop());
+    scanVideoStream = null;
+  }
+  const video = document.getElementById('scan-video');
+  if(video) { video.srcObject = null; }
+  const startBtn = document.getElementById('btn-start-scan');
+  const stopBtn = document.getElementById('btn-stop-scan');
+  if(startBtn) startBtn.style.display = 'inline-flex';
+  if(stopBtn) stopBtn.style.display = 'none';
+  const status = document.getElementById('scan-status');
+  if(status) status.textContent = 'Scanner arrêté';
+}
+
+// ---- MODE PHOTO (fonctionne partout — ouvre la caméra native du tel) ----
+function decodePhotoQR(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const preview = document.getElementById('scan-photo-preview');
+  const img = document.getElementById('scan-photo-img');
+  const status = document.getElementById('scan-photo-status');
+  preview.style.display = 'block';
+  status.textContent = '⏳ Décodage en cours...';
+  status.style.color = 'var(--text3)';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    img.src = e.target.result;
+    img.onload = () => {
+      const canvas = document.getElementById('scan-decode-canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      if(!window.jsQR) { status.textContent = '❌ jsQR non chargé'; return; }
+      // Essai 1: normal
+      let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      // Essai 2: image réduite si trop grande
+      if(!code && (canvas.width > 800 || canvas.height > 800)) {
+        const scale = Math.min(800/canvas.width, 800/canvas.height);
+        const c2 = document.createElement('canvas');
+        c2.width = Math.round(canvas.width * scale);
+        c2.height = Math.round(canvas.height * scale);
+        c2.getContext('2d').drawImage(img, 0, 0, c2.width, c2.height);
+        const id2 = c2.getContext('2d').getImageData(0, 0, c2.width, c2.height);
+        code = jsQR(id2.data, id2.width, id2.height, { inversionAttempts: 'attemptBoth' });
+      }
+      if(code && code.data) {
+        status.innerHTML = '✅ QR code détecté !';
+        status.style.color = 'var(--green2)';
+        beepScan();
+        setTimeout(() => {
+          ajouterTicketAuPanier(code.data.trim());
+          preview.style.display = 'none';
+          input.value = '';
+        }, 600);
+      } else {
+        status.innerHTML = '❌ Aucun QR code détecté dans cette image.<br><span style="color:var(--text3);font-size:11px;">Réessayez en vous rapprochant du QR code et en évitant le flou.</span>';
+        status.style.color = 'var(--red)';
+      }
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- COMMUN ----
 function beepScan() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2875,7 +3627,7 @@ function viderPanier() {
 
 async function validerPaiementPanier() {
   if(panier.length === 0) { showToast('Panier vide', 'error'); return; }
-  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
 
   for(const item of panier) {
     await marquerPayement(item.ticketId, item.op.id, true);
