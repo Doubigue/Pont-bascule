@@ -1,0 +1,2965 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a2e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PontBascule">
+<title>🌾 Pont Bascule - Gestion Graines</title>
+<link rel="manifest" href="data:application/json,{%22name%22:%22Pont%20Bascule%20Graines%22,%22short_name%22:%22PontBascule%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%231a2e1a%22,%22theme_color%22:%22%231a2e1a%22}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0e1a0e;
+    --surface: #162016;
+    --surface2: #1e2e1e;
+    --surface3: #263226;
+    --border: #2d422d;
+    --border2: #3a553a;
+    --gold: #c9a84c;
+    --gold2: #e8c96a;
+    --green: #4caf50;
+    --green2: #66bb6a;
+    --red: #ef5350;
+    --red2: #ff7043;
+    --blue: #42a5f5;
+    --text: #e8f0e8;
+    --text2: #a8bca8;
+    --text3: #6a886a;
+    --radius: 12px;
+    --radius2: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --shadow2: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html, body {
+    height: 100%;
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* === LAYOUT === */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* === HEADER === */
+  #header {
+    background: linear-gradient(135deg, var(--surface) 0%, #1a2e18 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.5);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--green2); }
+
+  .file-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .file-status:hover { border-color: var(--gold); color: var(--gold); }
+  .file-status.connected { border-color: var(--green); color: var(--green); }
+  .file-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+  .file-status.connected .file-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* === TABS === */
+  #tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  #tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* === CONTENT === */
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+    padding: 16px;
+  }
+  #content::-webkit-scrollbar { width: 4px; }
+  #content::-webkit-scrollbar-track { background: transparent; }
+  #content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* === CARDS === */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow2);
+  }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--gold);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* === FORMS === */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius2);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--text3); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 70px; }
+
+  .input-unit {
+    position: relative;
+  }
+  .input-unit input { padding-right: 48px; }
+  .unit-badge {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* === BUTTONS === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: var(--radius2);
+    border: none;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary { background: var(--gold); color: #1a1a0a; }
+  .btn-primary:hover { background: var(--gold2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(201,168,76,0.3); }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-success:hover { background: var(--green2); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: var(--red2); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* === POIDS DISPLAY === */
+  .weight-display {
+    background: var(--surface2);
+    border: 2px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .weight-display::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(201,168,76,0.05), transparent);
+    pointer-events: none;
+  }
+  .weight-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .weight-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .weight-unit { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+  /* === NET WEIGHT === */
+  .net-weight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .net-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius2);
+    padding: 10px;
+    text-align: center;
+  }
+  .net-box.highlight { border-color: var(--green); background: rgba(76,175,80,0.1); }
+  .net-box .nb-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+  .net-box .nb-val { font-family: 'DM Mono', monospace; font-size: 18px; color: var(--text); margin-top: 2px; }
+  .net-box.highlight .nb-val { color: var(--green2); }
+
+  /* === TABLE === */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius2);
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 600px;
+  }
+  thead { background: var(--surface2); }
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text3);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  td.bold { color: var(--text); font-weight: 500; }
+  td.green { color: var(--green2); }
+  td.gold { color: var(--gold); }
+  td.red { color: var(--red2); }
+
+  /* === BADGE === */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-entree { background: rgba(76,175,80,0.2); color: var(--green2); border: 1px solid rgba(76,175,80,0.3); }
+  .badge-sortie { background: rgba(239,83,80,0.2); color: var(--red2); border: 1px solid rgba(239,83,80,0.3); }
+  .badge-pending { background: rgba(201,168,76,0.2); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+
+  /* === STATS === */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  @media(min-width: 480px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-card .sc-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--gold);
+  }
+  .stat-card .sc-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* === SEARCH === */
+  .search-bar {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  .search-bar input { padding-left: 36px; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; }
+
+  /* === ALERT === */
+  .alert {
+    padding: 12px 14px;
+    border-radius: var(--radius2);
+    font-size: 13px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .alert-info { background: rgba(66,165,245,0.15); border: 1px solid rgba(66,165,245,0.3); color: var(--blue); }
+  .alert-success { background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.3); color: var(--green2); }
+  .alert-warn { background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3); color: var(--gold); }
+
+  /* === TOAST === */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green2); }
+  #toast.error { border-color: var(--red); color: var(--red2); }
+
+  /* === MODAL === */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-close { cursor: pointer; color: var(--text3); font-size: 20px; line-height: 1; }
+
+  /* === SECTION HEADERS === */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* === TICKET === */
+  .ticket {
+    background: #fff;
+    color: #000;
+    border-radius: var(--radius);
+    padding: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    border: 2px dashed var(--border2);
+    white-space: pre-wrap;
+  }
+
+  /* === FILE PICKER === */
+  #file-picker-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 500;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+  }
+  #file-picker-overlay.open { display: flex; }
+  .file-picker-box {
+    background: var(--surface);
+    border: 2px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 32px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  .file-picker-icon { font-size: 48px; margin-bottom: 16px; }
+  .file-picker-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); margin-bottom: 8px; }
+  .file-picker-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+
+  /* === LOADING === */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* === DIVIDER === */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+
+  /* === INFO ROW === */
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .ir-key { color: var(--text3); }
+  .info-row .ir-val { color: var(--text); font-weight: 500; font-family: 'DM Mono', monospace; font-size: 12px; }
+
+  /* === RESPONSIVE === */
+  @media(max-width: 400px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+  }
+
+  /* === PAIEMENTS === */
+  .pay-ticket-row input[type=checkbox] {
+    width: 22px; height: 22px; cursor: pointer; accent-color: var(--green);
+  }
+  #scan-result { animation: fadeIn 0.3s ease; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="header-left">
+      <div class="logo">🌾 Pont<span>Bascule</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+    <div class="file-status" id="file-status-btn" onclick="openFilePicker()">
+      <div class="file-dot"></div>
+      <span id="file-status-text">Aucun fichier</span>
+    </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs">
+    <div class="tab active" onclick="showPage('pesee')" data-page="pesee">⚖️ Pesée</div>
+    <div class="tab" onclick="showPage('operations')" data-page="operations">📋 Opérations</div>
+    <div class="tab" onclick="showPage('stats')" data-page="stats">📊 Statistiques</div>
+    <div class="tab" onclick="showPage('paiements')" data-page="paiements">💰 Paiements</div>
+    <div class="tab" onclick="showPage('scanner')" data-page="scanner">📷 Scanner</div>
+    <div class="tab" onclick="showPage('referentiels')" data-page="referentiels">🗃️ Référentiels</div>
+    <div class="tab" onclick="showPage('export')" data-page="export">📤 Export</div>
+    <div class="tab" onclick="showPage('config')" data-page="config">⚙️ Config</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ===== PAGE PESÉE ===== -->
+    <div class="page active" id="page-pesee">
+
+      <div class="alert alert-warn" id="no-file-alert">
+        ⚠️ Aucun fichier de données sélectionné. <a href="#" onclick="openFilePicker()" style="color:var(--gold);text-decoration:underline;">Ouvrir ou créer un fichier</a>
+      </div>
+
+      <!-- Type d'opération -->
+      <div class="card">
+        <div class="card-title">⚖️ Nouvelle Pesée</div>
+
+        <div class="form-grid">
+          <div class="field full">
+            <label>Type d'opération</label>
+            <select id="op-type" onchange="onTypeChange()">
+              <option value="entree">📥 ENTRÉE — Réception de graines</option>
+              <option value="sortie">📤 SORTIE — Expédition de graines</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Date & Heure</label>
+            <input type="datetime-local" id="op-date">
+          </div>
+        </div>
+
+        <hr class="divider">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🚚 Véhicule & Chauffeur</div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Véhicule (immat.)</label>
+            <select id="op-vehicule" onchange="onVehiculeChange()">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Chauffeur (lié au véhicule)</label>
+            <input type="text" id="op-chauffeur-nom" placeholder="Sélectionnez un véhicule..." readonly style="background:var(--surface3);cursor:default;">
+          </div>
+          <div class="field">
+            <label>Prénom chauffeur</label>
+            <input type="text" id="op-chauffeur-prenom" placeholder="—" readonly style="background:var(--surface3);cursor:default;">
+          </div>
+          <div class="field">
+            <label>Ville / Campement (Chauffeur)</label>
+            <input type="text" id="op-chauffeur-ville" placeholder="—" readonly style="background:var(--surface3);cursor:default;">
+          </div>
+          <div style="display:none;"><input type="text" id="op-chauffeur"></div>
+          <div style="display:none;"><input type="text" id="op-transporteur"></div>
+        </div>
+
+        <hr class="divider">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⚖️ Pesées</div>
+        <div class="net-weight-grid">
+          <div class="net-box">
+            <div class="nb-label">Poids Brut</div>
+            <div class="nb-val" id="disp-brut">—</div>
+          </div>
+          <div class="net-box">
+            <div class="nb-label">Poids Vide</div>
+            <div class="nb-val" id="disp-tare">—</div>
+          </div>
+          <div class="net-box highlight">
+            <div class="nb-label">⚡ Poids Net</div>
+            <div class="nb-val" id="disp-net">—</div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Poids Brut (kg)</label>
+            <div class="input-unit">
+              <input type="number" id="poids-brut" placeholder="Ex: 28500" oninput="calcNet()">
+              <span class="unit-badge">kg</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Poids Vide (kg)</label>
+            <div class="input-unit">
+              <input type="number" id="poids-tare" placeholder="Ex: 8500" oninput="calcNet()">
+              <span class="unit-badge">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🌾 Graine</div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Produit / Graine</label>
+            <select id="op-produit">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Campagne / Lot</label>
+            <input type="text" id="op-campagne" placeholder="Ex: 2024-2025">
+          </div>
+          <div class="field">
+            <label>Humidité (%)</label>
+            <div class="input-unit">
+              <input type="number" id="op-humidite" placeholder="Ex: 14.5" step="0.1">
+              <span class="unit-badge">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Impuretés (%)</label>
+            <div class="input-unit">
+              <input type="number" id="op-impuretes" placeholder="Ex: 0.5" step="0.1">
+              <span class="unit-badge">%</span>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">👥 Acteurs commerciaux</div>
+
+        <div class="form-grid">
+          <div class="field" id="div-fournisseur">
+            <label id="label-acteur1">Fournisseur / Producteur</label>
+            <select id="op-fournisseur">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Ville / Village / Campement (Producteur)</label>
+            <input type="text" id="op-fournisseur-ville" placeholder="Ex: Ferké, Village Nafana...">
+          </div>
+          <div class="field">
+            <label>Client / Acheteur</label>
+            <input type="text" id="op-client" placeholder="Propriétaire" value="Propriétaire">
+          </div>
+          <div class="field">
+            <label>Ville / Village (Acheteur)</label>
+            <input type="text" id="op-client-ville" placeholder="Ex: Abidjan, Bouaké...">
+          </div>
+          <div class="field">
+            <label>N° Bon de livraison</label>
+            <input type="text" id="op-bdc" placeholder="BL-XXXX">
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:10px;">
+          <label>Observations</label>
+          <textarea id="op-obs" placeholder="Remarques, qualité, réserves..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveOperation()" id="btn-save">
+            💾 Enregistrer
+          </button>
+          <button class="btn btn-ghost" style="background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold);" onclick="savePendingOp()" title="Enregistrer avec seulement le poids brut — compléter le poids vide plus tard">
+            ⏳ Mettre en attente
+          </button>
+          <button class="btn btn-ghost" onclick="resetForm()">🔄 Réinitialiser</button>
+          <button class="btn btn-ghost btn-sm" onclick="previewTicket()">🖨️ Aperçu 3 tickets</button>
+        </div>
+      </div>
+
+      <!-- Section opérations en attente -->
+      <details id="pending-section" style="margin-bottom:12px;">
+        <summary style="cursor:pointer;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--gold);list-style:none;user-select:none;">
+          ⏳ Opérations en attente de poids vide
+          <span id="pending-badge" style="display:none;background:var(--gold);color:#1a1a0a;border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;"></span>
+        </summary>
+        <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:12px;background:var(--surface);">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Ces véhicules sont sur le pont ou en attente du poids vide. Cliquez "Saisir Poids Vide" quand le véhicule revient.</div>
+          <div id="pending-ops-list"></div>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- ===== PAGE OPÉRATIONS ===== -->
+    <div class="page" id="page-operations">
+
+      <div class="section-header">
+        <div class="section-title">📋 Historique des Opérations</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadOperations()">🔄 Actualiser</button>
+      </div>
+
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-ops" placeholder="Rechercher véhicule, client, produit..." oninput="filterOps()">
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <select id="filter-type" onchange="filterOps()" style="flex:1;min-width:120px;">
+          <option value="">Tous types</option>
+          <option value="entree">📥 Entrées</option>
+          <option value="sortie">📤 Sorties</option>
+        </select>
+        <input type="date" id="filter-date-from" onchange="filterOps()" style="flex:1;min-width:120px;">
+        <input type="date" id="filter-date-to" onchange="filterOps()" style="flex:1;min-width:120px;">
+      </div>
+
+      <div class="table-wrap">
+        <table id="ops-table">
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Produit</th>
+              <th>Net (kg)</th>
+              <th>Véhicule</th>
+              <th>Client/Fourn.</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="ops-tbody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px;">Aucune donnée chargée</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="ops-count" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:right;"></div>
+
+    </div>
+
+    <!-- ===== PAGE STATS ===== -->
+    <div class="page" id="page-stats">
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="sc-val" id="stat-total-ops">—</div>
+          <div class="sc-label">Total opérations</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-val" id="stat-total-net">—</div>
+          <div class="sc-label">Tonnage net (t)</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-val" id="stat-entrees">—</div>
+          <div class="sc-label">Entrées</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-val" id="stat-sorties">—</div>
+          <div class="sc-label">Sorties</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Récap par Produit</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Produit</th><th>Ops.</th><th>Entrées (kg)</th><th>Sorties (kg)</th><th>Stock net</th></tr></thead>
+            <tbody id="stats-produits-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px;">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚚 Récap par Véhicule</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Véhicule</th><th>Passages</th><th>Tonnage (kg)</th></tr></thead>
+            <tbody id="stats-transp-tbody">
+              <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost" style="width:100%;" onclick="computeStats()">🔄 Recalculer les statistiques</button>
+
+    </div>
+
+    <!-- ===== PAGE RÉFÉRENTIELS ===== -->
+    <div class="page" id="page-referentiels">
+
+      <!-- Produits -->
+      <div class="card">
+        <div class="card-title">🌾 Produits / Graines</div>
+        <div id="list-produits" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="new-produit" placeholder="Maïs, Soja, Blé..." style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addRef('produits','new-produit')">+ Ajouter</button>
+        </div>
+      </div>
+
+      <!-- Clients -->
+      <div class="card">
+        <div class="card-title">👤 Clients / Acheteurs</div>
+        <div id="list-clients" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="new-client" placeholder="Nom du client..." style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addRef('clients','new-client')">+ Ajouter</button>
+        </div>
+      </div>
+
+      <!-- Fournisseurs -->
+      <div class="card">
+        <div class="card-title">🏭 Fournisseurs / Producteurs</div>
+        <div id="list-fournisseurs" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="new-fournisseur" placeholder="Nom du fournisseur..." style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addRef('fournisseurs','new-fournisseur')">+ Ajouter</button>
+        </div>
+      </div>
+
+      <!-- Chauffeurs -->
+      <div class="card">
+        <div class="card-title">🧑‍✈️ Chauffeurs</div>
+        <div id="list-chauffeurs" style="margin-bottom:10px;"></div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Ajoutez un chauffeur avec son véhicule associé :</div>
+        <div class="form-grid" style="margin-bottom:8px;">
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="new-chauffeur-nom" placeholder="KONÉ">
+          </div>
+          <div class="field">
+            <label>Prénom</label>
+            <input type="text" id="new-chauffeur-prenom" placeholder="Mamadou">
+          </div>
+          <div class="field">
+            <label>Ville / Village</label>
+            <input type="text" id="new-chauffeur-ville" placeholder="Korhogo...">
+          </div>
+          <div class="field">
+            <label>Véhicule associé (immat.)</label>
+            <select id="new-chauffeur-vehicule">
+              <option value="">— Aucun —</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addChauffeur()">+ Ajouter chauffeur</button>
+      </div>
+
+      <!-- Véhicules -->
+      <div class="card">
+        <div class="card-title">🚚 Véhicules</div>
+        <div id="list-vehicules" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="new-vehicule" placeholder="AB-123-CD" style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addRef('vehicules','new-vehicule')">+ Ajouter</button>
+        </div>
+      </div>
+
+      <button class="btn btn-success" style="width:100%;" onclick="saveRefs()">💾 Sauvegarder les référentiels</button>
+
+    </div>
+
+    <!-- ===== PAGE EXPORT ===== -->
+    <div class="page" id="page-export">
+
+      <div class="card">
+        <div class="card-title">📤 Export des données</div>
+
+        <div class="alert alert-info">
+          ℹ️ Les données sont stockées dans votre fichier local (.ndjson). Exportez au format CSV ou générez des rapports.
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Du</label>
+            <input type="date" id="export-date-from">
+          </div>
+          <div class="field">
+            <label>Au</label>
+            <input type="date" id="export-date-to">
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <select id="export-type">
+              <option value="">Tous</option>
+              <option value="entree">Entrées uniquement</option>
+              <option value="sortie">Sorties uniquement</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Produit</label>
+            <select id="export-produit">
+              <option value="">Tous les produits</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="exportCSV()">📊 Exporter CSV</button>
+          <button class="btn btn-ghost" onclick="exportJSON()">📦 Exporter JSON</button>
+          <button class="btn btn-blue" onclick="generateReport()">📑 Rapport PDF (print)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📁 Fichier de données</div>
+        <div id="file-info-display">
+          <p style="color:var(--text3);font-size:13px;">Aucun fichier ouvert.</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="openFilePicker()">📂 Changer de fichier</button>
+          <button class="btn btn-ghost" onclick="createNewFile()">✨ Nouveau fichier</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== PAGE CONFIG ===== -->
+    <div class="page" id="page-config">
+      <div class="card">
+        <div class="card-title">⚙️ Configuration</div>
+        <div class="form-grid">
+          <div class="field full">
+            <label>Nom de la structure / Bascule</label>
+            <input type="text" id="cfg-nom" placeholder="Ex: Coopérative Agricole du Nord">
+          </div>
+          <div class="field full">
+            <label>Adresse</label>
+            <input type="text" id="cfg-adresse" placeholder="Ex: 01 BP 456, Abidjan">
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="text" id="cfg-tel" placeholder="+225 ...">
+          </div>
+          <div class="field">
+            <label>RCCM / IFU</label>
+            <input type="text" id="cfg-rccm" placeholder="CI-ABJ-...">
+          </div>
+          <div class="field">
+            <label>Campagne actuelle</label>
+            <input type="text" id="cfg-campagne" placeholder="Ex: 2024-2025">
+          </div>
+          <div class="field">
+            <label>Capacité bascule (kg)</label>
+            <div class="input-unit">
+              <input type="number" id="cfg-capacite" placeholder="60000">
+              <span class="unit-badge">kg</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Unité d'affichage</label>
+            <select id="cfg-unite">
+              <option value="kg">Kilogrammes (kg)</option>
+              <option value="t">Tonnes (t)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>N° séquence départ</label>
+            <input type="number" id="cfg-seq" value="1">
+          </div>
+          <div class="field full">
+            <label>🔐 Mot de passe Opérateur / Propriétaire</label>
+            <input type="password" id="cfg-mdp-operateur" placeholder="(laisser vide = 1234 par défaut)" oninput="saveMdpOperateur()">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveConfig()">💾 Sauvegarder config</button>
+        </div>
+      </div>
+
+      <!-- Opérateurs -->
+      <div class="card">
+        <div class="card-title">👷 Opérateurs / Agents du Pont</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Ces noms apparaîtront sur les tickets et dans la signature.</div>
+        <div id="list-operateurs" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="new-operateur-nom" placeholder="Nom complet opérateur" style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addOperateur()">+ Ajouter</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Opérateur actif (en service)</label>
+          <select id="cfg-operateur-actif" style="margin-top:4px;" onchange="setOperateurActif()">
+            <option value="">— Aucun sélectionné —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Prix -->
+      <div class="card">
+        <div class="card-title">💱 Prix du Jour / Mois</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Définissez les prix applicables. Ils seront utilisés automatiquement dans la page Scanner. L'historique est conservé avec les numéros de tickets associés.</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Prix Graine (FCFA/kg)</label>
+            <div class="input-unit">
+              <input type="number" id="cfg-prix-graine" placeholder="Ex: 350" step="1" oninput="updatePrixPreview()">
+              <span class="unit-badge">FCFA</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Prix Transport (FCFA/kg)</label>
+            <div class="input-unit">
+              <input type="number" id="cfg-prix-transport" placeholder="Ex: 25" step="1" oninput="updatePrixPreview()">
+              <span class="unit-badge">FCFA</span>
+            </div>
+          </div>
+          <div class="field full">
+            <label>Valable à partir du</label>
+            <input type="date" id="cfg-prix-date">
+          </div>
+        </div>
+        <div id="prix-preview" style="display:none;margin:10px 0;padding:10px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:12px;color:var(--gold);"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="savePrix()">💾 Enregistrer les prix</button>
+        </div>
+      </div>
+
+      <!-- Historique des prix -->
+      <div class="card">
+        <div class="card-title">📜 Historique des Prix</div>
+        <div id="historique-prix-list">
+          <div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Aucun historique disponible</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">ℹ️ À propos</div>
+        <div class="info-row"><span class="ir-key">Application</span><span class="ir-val">PontBascule v2.0</span></div>
+        <div class="info-row"><span class="ir-key">Stockage</span><span class="ir-val">File System Access API</span></div>
+        <div class="info-row"><span class="ir-key">Format données</span><span class="ir-val">NDJSON (.ndjson)</span></div>
+        <div class="info-row"><span class="ir-key">Compatible</span><span class="ir-val">Chrome / Edge 86+</span></div>
+        <div class="info-row"><span class="ir-key">Données illimitées</span><span class="ir-val">✅ Disque local uniquement</span></div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE PAIEMENTS ===== -->
+    <div class="page" id="page-paiements">
+      <div class="section-header">
+        <div class="section-title">💰 Historique des Paiements</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadPaiements()">🔄 Actualiser</button>
+      </div>
+
+      <!-- Filtres groupés -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <select id="filter-pay-groupe" onchange="loadPaiements()" style="flex:1;min-width:130px;">
+          <option value="transporteur">🚚 Transporteur</option>
+          <option value="acheteur">👤 Acheteur</option>
+          <option value="producteur">🌾 Producteur</option>
+        </select>
+        <select id="filter-pay-statut" onchange="loadPaiements()" style="flex:1;min-width:120px;">
+          <option value="">Tous statuts</option>
+          <option value="non_paye">⏳ Non payés</option>
+          <option value="paye">✅ Payés</option>
+        </select>
+        <input type="text" id="filter-pay-search" placeholder="Rechercher nom, ticket..." oninput="loadPaiements()" style="flex:2;min-width:140px;">
+      </div>
+
+      <!-- Résumé totaux -->
+      <div id="pay-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+
+      <!-- Liste des groupes -->
+      <div id="paiements-list"></div>
+    </div>
+
+    <!-- ===== PAGE SCANNER ===== -->
+    <div class="page" id="page-scanner">
+      <div class="section-header">
+        <div class="section-title">📷 Scanner Ticket</div>
+        <div id="scan-prix-badge" style="font-size:11px;color:var(--text3);"></div>
+      </div>
+
+      <!-- Prix en vigueur compact -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+          <div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">🌾 Graine</div>
+            <div id="scan-prix-graine" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--green2);">—</div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);">FCFA/kg</div>
+        </div>
+        <div style="background:rgba(66,165,245,0.1);border:1px solid rgba(66,165,245,0.3);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+          <div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">🚚 Transport</div>
+            <div id="scan-prix-transport" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);">—</div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);">FCFA/kg</div>
+        </div>
+      </div>
+
+      <!-- Caméra scanner -->
+      <div class="card" style="padding:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:600;color:var(--gold);">📷 Caméra QR / Code-barres</div>
+          <div style="display:flex;gap:6px;">
+            <button id="btn-start-scan" class="btn btn-success btn-sm" onclick="startQRScanner()">▶ Démarrer</button>
+            <button id="btn-stop-scan" class="btn btn-ghost btn-sm" onclick="stopQRScanner()" style="display:none;">⏹ Arrêter</button>
+          </div>
+        </div>
+        <!-- Viewfinder -->
+        <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;background:#000;min-height:200px;"></div>
+        <div id="scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;">Appuyez sur Démarrer pour activer la caméra</div>
+
+        <!-- Saisie manuelle en fallback -->
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <input type="text" id="scan-ticket-input" placeholder="Ou saisir/coller le N° ticket manuellement..." style="flex:1;font-family:'DM Mono',monospace;font-size:12px;">
+          <button class="btn btn-primary btn-sm" onclick="ajouterTicketManuel()">+ Ajouter</button>
+        </div>
+      </div>
+
+      <!-- PANIER -->
+      <div class="card" id="panier-card" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:14px;font-weight:700;color:var(--gold);">🛒 Panier — <span id="panier-count">0</span> ticket(s)</div>
+          <button class="btn btn-ghost btn-sm" onclick="viderPanier()" style="color:var(--red);border-color:var(--red);">🗑 Vider</button>
+        </div>
+
+        <!-- Résumé totaux -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:2px;">⚖️ Tonnage Total</div>
+            <div id="panier-total-tonnage" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--gold);">0 t</div>
+          </div>
+          <div style="background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:2px;">🌾 Total Graine</div>
+            <div id="panier-total-graine" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--green2);">0 FCFA</div>
+          </div>
+          <div style="background:rgba(66,165,245,0.1);border:1px solid rgba(66,165,245,0.3);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:2px;">🚚 Total Transport</div>
+            <div id="panier-total-transport" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--blue);">0 FCFA</div>
+          </div>
+        </div>
+
+        <!-- Véhicule associé -->
+        <div id="panier-vehicule-info" style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:none;">
+          <span style="color:var(--text3);">🚚 Véhicule :</span> <span id="panier-vehicule-nom" style="color:var(--gold);font-weight:600;"></span>
+          &nbsp;·&nbsp; <span style="color:var(--text3);">Chauffeur :</span> <span id="panier-chauffeur-nom" style="color:var(--text);"></span>
+        </div>
+
+        <!-- Liste tickets -->
+        <div id="panier-items" style="margin-bottom:12px;"></div>
+
+        <!-- Bouton valider -->
+        <button class="btn btn-success" style="width:100%;font-size:14px;padding:14px;" onclick="validerPaiementPanier()">
+          ✅ VALIDER LE PAIEMENT — <span id="panier-btn-total">0 FCFA</span>
+        </button>
+      </div>
+
+      <!-- Alerte scan -->
+      <div id="scan-alert" style="display:none;margin-top:10px;"></div>
+    </div>
+
+  </div><!-- end #content -->
+</div><!-- end #app -->
+
+<!-- FILE PICKER OVERLAY -->
+<div id="file-picker-overlay">
+  <div class="file-picker-box">
+    <div class="file-picker-icon">📁</div>
+    <div class="file-picker-title">Fichier de données</div>
+    <div class="file-picker-desc">
+      L'application écrit directement sur votre disque.<br>
+      Choisissez un fichier existant (.ndjson) ou créez-en un nouveau.<br>
+      <strong>Capacité : illimitée (dépend de votre stockage).</strong>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary" onclick="pickExistingFile()">📂 Ouvrir fichier existant</button>
+      <button class="btn btn-success" onclick="createNewFile()">✨ Créer nouveau fichier</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeFilePicker()">Annuler</button>
+    </div>
+    <div style="margin-top:14px;padding:10px;background:rgba(201,168,76,0.1);border-radius:8px;font-size:11px;color:var(--gold);line-height:1.6;">
+      ⚠️ <strong>Compatibilité :</strong> Nécessite Chrome ou Edge 86+.<br>
+      Sur iOS/Safari : les données seront téléchargées en CSV.
+    </div>
+  </div>
+</div>
+
+<!-- TICKET MODAL -->
+<div class="modal-overlay" id="ticket-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">
+      🖨️ Bons de Pesée (3 exemplaires)
+      <span class="modal-close" onclick="closeModal('ticket-modal')">✕</span>
+    </div>
+    <!-- Tab selector -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="btn btn-sm" id="tab-btn-transporteur" onclick="showTicketTab('transporteur')" style="flex:1;background:var(--gold);color:#1a1a0a;font-size:11px;">🚚 Transporteur</button>
+      <button class="btn btn-sm btn-ghost" id="tab-btn-producteur" onclick="showTicketTab('producteur')" style="flex:1;font-size:11px;">🌾 Producteur</button>
+      <button class="btn btn-sm btn-ghost" id="tab-btn-acheteur" onclick="showTicketTab('acheteur')" style="flex:1;font-size:11px;">👤 Acheteur</button>
+    </div>
+    <div id="ticket-content" style="background:#fff;color:#000;border-radius:var(--radius);padding:16px;font-family:'DM Mono',monospace;font-size:11px;line-height:1.7;border:2px dashed var(--border2);white-space:pre-wrap;max-height:55vh;overflow-y:auto;"></div>
+    <div id="ticket-qr" style="text-align:center;margin-top:10px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="printCurrentTicket()">🖨️ Imprimer ce ticket</button>
+      <button class="btn btn-success" onclick="printAllTickets()">🖨️ Imprimer les 3</button>
+      <button class="btn btn-ghost" onclick="closeModal('ticket-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-title">
+      📋 Détail opération
+      <span class="modal-close" onclick="closeModal('detail-modal')">✕</span>
+    </div>
+    <div id="detail-content"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="printDetailTicket()">🖨️ Tickets (3)</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-op" onclick="deleteCurrentOp()">🗑️ Supprimer</button>
+      <button class="btn btn-ghost" onclick="closeModal('detail-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MOT DE PASSE MODAL -->
+<div class="modal-overlay" id="mdp-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">
+      🔐 Décocher le paiement
+      <span class="modal-close" onclick="closeModal('mdp-modal')">✕</span>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Cette action est protégée. Entrez le mot de passe opérateur ou propriétaire du pont pour continuer.</div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="mdp-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')confirmerDecocher()">
+    </div>
+    <div id="mdp-error" style="color:var(--red);font-size:12px;margin-top:6px;display:none;">❌ Mot de passe incorrect</div>
+    <div class="btn-row">
+      <button class="btn btn-danger" onclick="confirmerDecocher()">🔓 Confirmer</button>
+      <button class="btn btn-ghost" onclick="closeModal('mdp-modal')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// ÉTAT GLOBAL
+// ================================================================
+let fileHandle = null;
+let allOperations = [];
+let refs = { produits:['Palmier à huile'], clients:[], fournisseurs:[], transporteurs:[], vehicules:[], chauffeurs:[], operateurs:[] };
+let config = {
+  nom: 'Pont Bascule', adresse: '', tel: '', rccm: '',
+  campagne: new Date().getFullYear().toString(),
+  capacite: 60000, unite: 'kg', seq: 1, operateurActif: ''
+};
+let currentDetailOp = null;
+let filteredOps = [];
+let historiquePrix = [];
+let paiementsData = {};
+let panier = [];
+let qrScanner = null;
+
+const REFS_KEY = '__refs__';
+const CONFIG_KEY = '__config__';
+
+// ================================================================
+// INIT
+// ================================================================
+window.onload = async () => {
+  setDefaultDate();
+  loadLocalConfig();
+  renderPendingOps();
+};
+
+// ================================================================
+// OPÉRATIONS EN ATTENTE (1er poids sans tare)
+// ================================================================
+let pendingOperations = JSON.parse(sessionStorage.getItem('pendingOps') || '[]');
+
+function savePendingToSession() {
+  sessionStorage.setItem('pendingOps', JSON.stringify(pendingOperations));
+}
+
+function renderPendingOps() {
+  const container = document.getElementById('pending-ops-list');
+  if(!container) return;
+  if(pendingOperations.length === 0) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0;text-align:center;">Aucune opération en attente</div>';
+    document.getElementById('pending-badge').style.display = 'none';
+    return;
+  }
+  document.getElementById('pending-badge').textContent = pendingOperations.length;
+  document.getElementById('pending-badge').style.display = 'inline-block';
+  container.innerHTML = pendingOperations.map((op, idx) => `
+    <div style="background:var(--surface2);border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:var(--gold);">⏳ N° ${op.tmpSeq} — ${op.vehicule || 'Véhicule ?'}</div>
+        <div style="font-size:11px;color:var(--text2);">${op.produit || '—'} · Brut: ${(op.poidsbrut||0).toLocaleString('fr-FR')} kg · ${op.chauffeurNom || op.chauffeur || '—'}</div>
+        <div style="font-size:10px;color:var(--text3);">${new Date(op.date).toLocaleString('fr-FR')}</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary btn-sm" onclick="completePending(${idx})">⚖️ Saisir Poids Vide</button>
+        <button class="btn btn-danger btn-sm" onclick="cancelPending(${idx})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function savePendingOp() {
+  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  const brut = parseFloat(document.getElementById('poids-brut').value);
+  if(!brut || brut <= 0) { showToast('Saisir le poids brut (1ère pesée)', 'error'); return; }
+  const produit = document.getElementById('op-produit').value;
+  if(!produit) { showToast('Sélectionner un produit', 'error'); return; }
+
+  const op = {
+    tmpId: 'PEND-' + Date.now(),
+    tmpSeq: config.seq,
+    opType: document.getElementById('op-type').value,
+    date: document.getElementById('op-date').value,
+    produit,
+    campagne: document.getElementById('op-campagne').value,
+    poidsbrut: brut,
+    humidite: parseFloat(document.getElementById('op-humidite').value) || null,
+    impuretes: parseFloat(document.getElementById('op-impuretes').value) || null,
+    fournisseur: document.getElementById('op-fournisseur').value,
+    fournisseurVille: document.getElementById('op-fournisseur-ville') ? document.getElementById('op-fournisseur-ville').value : '',
+    client: document.getElementById('op-client').value,
+    clientVille: document.getElementById('op-client-ville') ? document.getElementById('op-client-ville').value : '',
+    transporteur: '',
+    vehicule: document.getElementById('op-vehicule').value,
+    chauffeur: document.getElementById('op-chauffeur').value,
+    chauffeurNom: document.getElementById('op-chauffeur-nom') ? document.getElementById('op-chauffeur-nom').value : '',
+    chauffeurPrenom: document.getElementById('op-chauffeur-prenom') ? document.getElementById('op-chauffeur-prenom').value : '',
+    chauffeurVille: document.getElementById('op-chauffeur-ville') ? document.getElementById('op-chauffeur-ville').value : '',
+    bdc: document.getElementById('op-bdc').value,
+    obs: document.getElementById('op-obs').value,
+    createdAt: new Date().toISOString()
+  };
+
+  pendingOperations.push(op);
+  savePendingToSession();
+  config.seq++;
+  renderPendingOps();
+  showToast(`⏳ Opération N°${op.tmpSeq} mise en attente (poids vide à compléter)`, 'success');
+  resetForm();
+  // Ouvrir section attente
+  document.getElementById('pending-section').open = true;
+}
+
+function completePending(idx) {
+  const op = pendingOperations[idx];
+  if(!op) return;
+  // Remplir le formulaire avec les données de l'opération en attente
+  document.getElementById('op-type').value = op.opType;
+  document.getElementById('op-date').value = op.date;
+  document.getElementById('op-produit').value = op.produit;
+  document.getElementById('op-campagne').value = op.campagne || '';
+  document.getElementById('poids-brut').value = op.poidsbrut;
+  document.getElementById('poids-tare').value = '';
+  document.getElementById('op-humidite').value = op.humidite || '';
+  document.getElementById('op-impuretes').value = op.impuretes || '';
+  document.getElementById('op-fournisseur').value = op.fournisseur || '';
+  if(document.getElementById('op-fournisseur-ville')) document.getElementById('op-fournisseur-ville').value = op.fournisseurVille || '';
+  document.getElementById('op-client').value = op.client || 'Propriétaire';
+  if(document.getElementById('op-client-ville')) document.getElementById('op-client-ville').value = op.clientVille || '';
+  document.getElementById('op-vehicule').value = op.vehicule || '';
+  onVehiculeChange();
+  // Override with saved chauffeur data if present
+  if(op.chauffeurNom && document.getElementById('op-chauffeur-nom')) document.getElementById('op-chauffeur-nom').value = op.chauffeurNom;
+  if(op.chauffeurPrenom && document.getElementById('op-chauffeur-prenom')) document.getElementById('op-chauffeur-prenom').value = op.chauffeurPrenom;
+  if(op.chauffeurVille && document.getElementById('op-chauffeur-ville')) document.getElementById('op-chauffeur-ville').value = op.chauffeurVille;
+  document.getElementById('op-bdc').value = op.bdc || '';
+  document.getElementById('op-obs').value = op.obs || '';
+  calcNet();
+  onTypeChange();
+  // Marquer que c'est une complétion
+  document.getElementById('btn-save').dataset.pendingIdx = idx;
+  document.getElementById('btn-save').dataset.pendingId = op.tmpId;
+  document.getElementById('btn-save').innerHTML = '✅ Compléter le Poids Vide';
+  document.getElementById('btn-save').classList.add('btn-success');
+  document.getElementById('btn-save').classList.remove('btn-primary');
+  showPage('pesee');
+  document.getElementById('content').scrollTo(0, 0);
+  showToast(`📋 Complétez le Poids Vide pour l'opération N°${op.tmpSeq}`, '');
+}
+
+function cancelPending(idx) {
+  if(!confirm('Annuler cette opération en attente ?')) return;
+  pendingOperations.splice(idx, 1);
+  savePendingToSession();
+  renderPendingOps();
+  showToast('🗑️ Opération en attente annulée', 'success');
+}
+
+function resetPendingMode() {
+  const btn = document.getElementById('btn-save');
+  delete btn.dataset.pendingIdx;
+  delete btn.dataset.pendingId;
+  btn.innerHTML = '💾 Enregistrer';
+  btn.classList.add('btn-primary');
+  btn.classList.remove('btn-success');
+}
+
+function setDefaultDate() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('op-date').value = local;
+  // Lot = année en cours par défaut
+  if(!document.getElementById('op-campagne').value) {
+    const campagneDefault = config.campagne || now.getFullYear().toString();
+    document.getElementById('op-campagne').value = campagneDefault;
+  }
+}
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelector(`[data-page="${name}"]`).classList.add('active');
+  if(name === 'operations') loadOperations();
+  if(name === 'stats') computeStats();
+  if(name === 'referentiels') renderRefs();
+  if(name === 'export') populateExportSelects();
+  if(name === 'paiements') loadPaiements();
+  if(name === 'scanner') initScanner();
+  else if(qrScanner) stopQRScanner(); // arrêter camera si on quitte
+  if(name === 'config') { loadConfigToForm(); renderHistoriquePrix(); }
+}
+
+// ================================================================
+// FILE SYSTEM ACCESS API
+// ================================================================
+function openFilePicker() {
+  document.getElementById('file-picker-overlay').classList.add('open');
+}
+function closeFilePicker() {
+  document.getElementById('file-picker-overlay').classList.remove('open');
+}
+
+async function pickExistingFile() {
+  if(!window.showOpenFilePicker) { fallbackAlert(); return; }
+  try {
+    const [handle] = await window.showOpenFilePicker({ multiple: false });
+    fileHandle = handle;
+    closeFilePicker();
+    await loadFileData();
+  } catch(e) { if(e.name !== 'AbortError') showToast('Erreur: ' + e.message, 'error'); }
+}
+
+async function createNewFile() {
+  if(!window.showSaveFilePicker) { fallbackAlert(); return; }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'pont_bascule_' + new Date().toISOString().slice(0,10) + '.ndjson',
+      excludeAcceptAllOption: false
+    });
+    fileHandle = handle;
+    // Write empty structure
+    const writable = await fileHandle.createWritable();
+    const initData = JSON.stringify({type:'init', date: new Date().toISOString(), refs, config}) + '\n';
+    await writable.write(initData);
+    await writable.close();
+    closeFilePicker();
+    allOperations = [];
+    updateFileStatus();
+    updateNoFileAlert();
+    showToast('✅ Nouveau fichier créé !', 'success');
+    renderRefs();
+  } catch(e) { if(e.name !== 'AbortError') showToast('Erreur: ' + e.message, 'error'); }
+}
+
+async function loadFileData() {
+  if(!fileHandle) return;
+  try {
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    allOperations = [];
+    historiquePrix = [];
+    paiementsData = {};
+    for(const line of lines) {
+      try {
+        const obj = JSON.parse(line);
+        if(obj.type === 'operation') allOperations.push(obj);
+        else if(obj.type === 'refs') { const merged = {...refs, ...obj.data}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
+        else if(obj.type === 'init' && obj.refs) { const merged = {...refs, ...obj.refs}; if(!merged.operateurs) merged.operateurs = []; refs = merged; }
+        else if(obj.type === 'init' && obj.config) config = {...config, ...obj.config};
+        else if(obj.type === 'config') config = {...config, ...obj.data};
+        else if(obj.type === 'prix') historiquePrix.push(obj.data);
+        else if(obj.type === 'paiement') paiementsData[obj.ticketId] = obj;
+      } catch(e){}
+    }
+    // Sort prix by date desc
+    historiquePrix.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    updateFileStatus();
+    updateNoFileAlert();
+    populateSelectsFromRefs();
+    loadConfigToForm();
+    showToast(`✅ ${allOperations.length} opérations chargées`, 'success');
+  } catch(e) { showToast('Erreur lecture: ' + e.message, 'error'); }
+}
+
+async function appendToFile(record) {
+  if(!fileHandle) { showToast('⚠️ Aucun fichier ouvert !', 'error'); return false; }
+  try {
+    // Verify permission
+    const perm = await fileHandle.queryPermission({mode:'readwrite'});
+    if(perm !== 'granted') {
+      const req = await fileHandle.requestPermission({mode:'readwrite'});
+      if(req !== 'granted') { showToast('Permission refusée', 'error'); return false; }
+    }
+    const file = await fileHandle.getFile();
+    const existingText = await file.text();
+    const newLine = JSON.stringify(record) + '\n';
+    const writable = await fileHandle.createWritable();
+    await writable.write(existingText + newLine);
+    await writable.close();
+    return true;
+  } catch(e) { showToast('Erreur écriture: ' + e.message, 'error'); return false; }
+}
+
+async function rewriteFile() {
+  if(!fileHandle) return false;
+  try {
+    const perm = await fileHandle.queryPermission({mode:'readwrite'});
+    if(perm !== 'granted') await fileHandle.requestPermission({mode:'readwrite'});
+    const writable = await fileHandle.createWritable();
+    const lines = [];
+    lines.push(JSON.stringify({type:'config', data: config}));
+    lines.push(JSON.stringify({type:'refs', data: refs}));
+    for(const p of historiquePrix) lines.push(JSON.stringify({type:'prix', data: p}));
+    for(const op of allOperations) lines.push(JSON.stringify(op));
+    for(const [tid, pay] of Object.entries(paiementsData)) lines.push(JSON.stringify(pay));
+    await writable.write(lines.join('\n') + '\n');
+    await writable.close();
+    return true;
+  } catch(e) { showToast('Erreur sauvegarde: ' + e.message, 'error'); return false; }
+}
+
+function updateFileStatus() {
+  const btn = document.getElementById('file-status-btn');
+  const txt = document.getElementById('file-status-text');
+  if(fileHandle) {
+    btn.classList.add('connected');
+    txt.textContent = fileHandle.name.length > 20 ? '...' + fileHandle.name.slice(-17) : fileHandle.name;
+    document.getElementById('file-info-display').innerHTML = `
+      <div class="info-row"><span class="ir-key">Fichier</span><span class="ir-val">${fileHandle.name}</span></div>
+      <div class="info-row"><span class="ir-key">Opérations</span><span class="ir-val">${allOperations.length}</span></div>
+    `;
+  } else {
+    btn.classList.remove('connected');
+    txt.textContent = 'Aucun fichier';
+  }
+}
+
+function updateNoFileAlert() {
+  document.getElementById('no-file-alert').style.display = fileHandle ? 'none' : 'flex';
+}
+
+function fallbackAlert() {
+  closeFilePicker();
+  showToast('⚠️ File System API non disponible. Utilisez Chrome/Edge 86+', 'error');
+}
+
+// ================================================================
+// FORM - PESÉE
+// ================================================================
+function calcNet() {
+  const brut = parseFloat(document.getElementById('poids-brut').value) || 0;
+  const tare = parseFloat(document.getElementById('poids-tare').value) || 0;
+  const net = brut - tare;
+  document.getElementById('disp-brut').textContent = brut > 0 ? fmtKg(brut) : '—';
+  document.getElementById('disp-tare').textContent = tare > 0 ? fmtKg(tare) : '—';
+  document.getElementById('disp-net').textContent = net > 0 ? fmtKg(net) : '—';
+}
+
+function onTypeChange() {
+  const type = document.getElementById('op-type').value;
+  const lbl = document.getElementById('label-acteur1');
+  lbl.textContent = type === 'entree' ? 'Fournisseur / Producteur' : 'Origine / Expéditeur';
+}
+
+function fmtKg(v) {
+  if(config.unite === 't') return (v/1000).toFixed(3) + ' t';
+  return v.toLocaleString('fr-FR') + ' kg';
+}
+
+async function saveOperation() {
+  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  const brut = parseFloat(document.getElementById('poids-brut').value);
+  const tare = parseFloat(document.getElementById('poids-tare').value);
+  if(!brut) { showToast('Saisir le poids brut', 'error'); return; }
+  if(!tare) { showToast('Saisir le poids vide (véhicule vide). Si pas encore disponible, utilisez "⏳ Mettre en attente"', 'error'); return; }
+  if(brut <= tare) { showToast('Le poids brut doit être > tare', 'error'); return; }
+  const produit = document.getElementById('op-produit').value;
+  if(!produit) { showToast('Sélectionner un produit', 'error'); return; }
+
+  // Vérifier si c'est une complétion d'opération en attente
+  const pendingBtn = document.getElementById('btn-save');
+  const pendingIdx = pendingBtn.dataset.pendingIdx !== undefined ? parseInt(pendingBtn.dataset.pendingIdx) : -1;
+  const pendingId = pendingBtn.dataset.pendingId;
+
+  // Construire le numéro de séquence
+  let seqNum = config.seq;
+  if(pendingIdx >= 0 && pendingOperations[pendingIdx]) {
+    seqNum = pendingOperations[pendingIdx].tmpSeq;
+  }
+
+  const op = {
+    type: 'operation',
+    id: pendingId ? pendingId.replace('PEND-','OP-') : 'OP-' + Date.now(),
+    seq: seqNum,
+    opType: document.getElementById('op-type').value,
+    date: document.getElementById('op-date').value,
+    produit,
+    campagne: document.getElementById('op-campagne').value,
+    poidsbrut: brut,
+    poidstare: tare,
+    poidsnet: brut - tare,
+    humidite: parseFloat(document.getElementById('op-humidite').value) || null,
+    impuretes: parseFloat(document.getElementById('op-impuretes').value) || null,
+    fournisseur: document.getElementById('op-fournisseur').value,
+    fournisseurVille: document.getElementById('op-fournisseur-ville') ? document.getElementById('op-fournisseur-ville').value : '',
+    client: document.getElementById('op-client').value,
+    clientVille: document.getElementById('op-client-ville') ? document.getElementById('op-client-ville').value : '',
+    transporteur: '',
+    vehicule: document.getElementById('op-vehicule').value,
+    chauffeur: document.getElementById('op-chauffeur').value,
+    chauffeurNom: document.getElementById('op-chauffeur-nom') ? document.getElementById('op-chauffeur-nom').value : '',
+    chauffeurPrenom: document.getElementById('op-chauffeur-prenom') ? document.getElementById('op-chauffeur-prenom').value : '',
+    chauffeurVille: document.getElementById('op-chauffeur-ville') ? document.getElementById('op-chauffeur-ville').value : '',
+    bdc: document.getElementById('op-bdc').value,
+    obs: document.getElementById('op-obs').value,
+    createdAt: new Date().toISOString()
+  };
+
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enregistrement...';
+
+  const ok = await appendToFile(op);
+  if(ok) {
+    allOperations.push(op);
+    // Si c'était une complétion, retirer de la liste en attente
+    if(pendingIdx >= 0) {
+      pendingOperations.splice(pendingIdx, 1);
+      savePendingToSession();
+      renderPendingOps();
+    } else {
+      config.seq++;
+    }
+    showToast(`✅ Opération N°${op.seq} enregistrée !`, 'success');
+    resetPendingMode();
+    resetForm();
+  }
+  btn.disabled = false;
+  if(!btn.dataset.pendingIdx) btn.innerHTML = '💾 Enregistrer';
+}
+
+function resetForm() {
+  document.getElementById('poids-brut').value = '';
+  document.getElementById('poids-tare').value = '';
+  document.getElementById('op-humidite').value = '';
+  document.getElementById('op-impuretes').value = '';
+  document.getElementById('op-fournisseur').value = '';
+  if(document.getElementById('op-fournisseur-ville')) document.getElementById('op-fournisseur-ville').value = '';
+  document.getElementById('op-client').value = 'Propriétaire';
+  if(document.getElementById('op-client-ville')) document.getElementById('op-client-ville').value = '';
+  document.getElementById('op-vehicule').value = '';
+  document.getElementById('op-chauffeur').value = '';
+  if(document.getElementById('op-chauffeur-nom')) { document.getElementById('op-chauffeur-nom').value = ''; document.getElementById('op-chauffeur-nom').placeholder = 'Sélectionnez un véhicule...'; }
+  if(document.getElementById('op-chauffeur-prenom')) { document.getElementById('op-chauffeur-prenom').value = ''; document.getElementById('op-chauffeur-prenom').placeholder = '—'; }
+  if(document.getElementById('op-chauffeur-ville')) { document.getElementById('op-chauffeur-ville').value = ''; document.getElementById('op-chauffeur-ville').placeholder = '—'; }
+  document.getElementById('op-bdc').value = '';
+  document.getElementById('op-obs').value = '';
+  document.getElementById('op-campagne').value = '';
+  document.getElementById('disp-brut').textContent = '—';
+  document.getElementById('disp-tare').textContent = '—';
+  document.getElementById('disp-net').textContent = '—';
+  resetPendingMode();
+  setDefaultDate();
+}
+
+// ================================================================
+// TICKET — 3 EXEMPLAIRES + QR CODE
+// ================================================================
+let currentTicketOp = null;
+let currentTicketTab = 'transporteur';
+
+// Génère un identifiant global pour les 3 tickets liés
+function genTicketGroupId(op) {
+  // Format: YYYYMMDD-SEQ (ex: 20240115-042)
+  const d = new Date(op.date);
+  const ymd = d.getFullYear().toString() +
+    String(d.getMonth()+1).padStart(2,'0') +
+    String(d.getDate()).padStart(2,'0');
+  return ymd + '-' + String(op.seq).padStart(3,'0');
+}
+
+// IDs individuels par destinataire
+// Transporteur : TRP-{groupId}-{date}
+// Producteur   : PRD-{groupId}-{date}
+// Acheteur     : ACH-{groupId}-{date}
+function ticketId(role, op) {
+  const grp = genTicketGroupId(op);
+  const d = new Date(op.date);
+  const dateStr = d.getFullYear().toString() +
+    String(d.getMonth()+1).padStart(2,'0') +
+    String(d.getDate()).padStart(2,'0');
+  const prefix = role === 'transporteur' ? 'TRP' : role === 'producteur' ? 'PRD' : 'ACH';
+  return `${prefix}-${grp}-${dateStr}`;
+}
+
+function buildTicketText(op, role) {
+  role = role || 'transporteur';
+  const sep  = '─'.repeat(38);
+  const sep2 = '═'.repeat(38);
+  const d = new Date(op.date).toLocaleString('fr-FR');
+  const chauffeurFull = [op.chauffeurNom, op.chauffeurPrenom].filter(Boolean).join(' ') || op.chauffeur || '—';
+  const chauffeurLoc  = op.chauffeurVille ? ` (${op.chauffeurVille})` : '';
+  const fournisseurLoc = op.fournisseurVille ? ` — ${op.fournisseurVille}` : '';
+  const clientLoc      = op.clientVille     ? ` — ${op.clientVille}`      : '';
+  const grpId  = genTicketGroupId(op);
+  const tktId  = ticketId(role, op);
+  const roleLabel = role === 'transporteur' ? '🚚 EXEMPLAIRE TRANSPORTEUR' :
+                    role === 'producteur'   ? '🌾 EXEMPLAIRE PRODUCTEUR'   :
+                                              '👤 EXEMPLAIRE ACHETEUR';
+
+  return `${config.nom || 'PONT BASCULE'}
+${config.adresse || ''}${config.tel ? '\nTél: ' + config.tel : ''}
+${sep2}
+     BON DE PESÉE — ${roleLabel}
+${sep2}
+Réf. groupe  : ${grpId}
+Réf. ticket  : ${tktId}
+${sep}
+Date/Heure   : ${d}
+Type         : ${op.opType === 'entree' ? '📥 ENTRÉE' : '📤 SORTIE'}
+N° Bon       : ${op.bdc || '—'}
+${sep}
+PRODUIT      : ${op.produit}
+Campagne     : ${op.campagne || '—'}
+Humidité     : ${op.humidite != null ? op.humidite + ' %' : '—'}
+Impuretés    : ${op.impuretes != null ? op.impuretes + ' %' : '—'}
+${sep}
+Poids Brut   : ${(op.poidsbrut||0).toLocaleString('fr-FR')} kg
+Poids Vide   : ${(op.poidstare||0).toLocaleString('fr-FR')} kg
+POIDS NET    : ${(op.poidsnet||0).toLocaleString('fr-FR')} kg
+             = ${((op.poidsnet||0)/1000).toFixed(3)} T
+${sep}
+Véhicule     : ${op.vehicule || '—'}
+Chauffeur    : ${chauffeurFull}${chauffeurLoc}
+Producteur   : ${op.fournisseur || '—'}${fournisseurLoc}
+Acheteur     : ${op.client || '—'}${clientLoc}
+${sep}
+Observations :
+${op.obs || '(Aucune)'}
+${sep}
+  [QR: ${tktId}]
+${sep}
+Signature peseur :        Signature destinataire :
+
+
+
+${sep}
+`.trim();
+}
+
+function showTicketTab(role) {
+  currentTicketTab = role;
+  // Update tab buttons
+  ['transporteur','producteur','acheteur'].forEach(r => {
+    const btn = document.getElementById('tab-btn-' + r);
+    if(r === role) {
+      btn.className = 'btn btn-sm';
+      btn.style.background = 'var(--gold)';
+      btn.style.color = '#1a1a0a';
+    } else {
+      btn.className = 'btn btn-sm btn-ghost';
+      btn.style.background = '';
+      btn.style.color = '';
+    }
+  });
+  if(currentTicketOp) {
+    document.getElementById('ticket-content').textContent = buildTicketText(currentTicketOp, role);
+    renderTicketQR(ticketId(role, currentTicketOp));
+  }
+}
+
+function renderTicketQR(id) {
+  const container = document.getElementById('ticket-qr');
+  container.innerHTML = '';
+  if(typeof QRCode === 'undefined') {
+    container.innerHTML = `<div style="font-size:10px;color:#888;">QR: ${id}</div>`;
+    return;
+  }
+  const wrapper = document.createElement('div');
+  wrapper.style.display = 'inline-block';
+  container.appendChild(wrapper);
+  new QRCode(wrapper, {
+    text: id,
+    width: 80, height: 80,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:9px;color:#666;margin-top:3px;font-family:monospace;';
+  lbl.textContent = id;
+  container.appendChild(lbl);
+}
+
+function openTicketModal(op) {
+  currentTicketOp = op;
+  currentTicketTab = 'transporteur';
+  showTicketTab('transporteur');
+  openModal('ticket-modal');
+}
+
+function previewTicket() {
+  const brut = parseFloat(document.getElementById('poids-brut').value);
+  const tare = parseFloat(document.getElementById('poids-tare').value);
+  const tempOp = {
+    seq: config.seq,
+    id: 'APERCU',
+    opType: document.getElementById('op-type').value,
+    date: document.getElementById('op-date').value,
+    produit: document.getElementById('op-produit').value || '—',
+    campagne: document.getElementById('op-campagne').value,
+    poidsbrut: brut || 0,
+    poidstare: tare || 0,
+    poidsnet: (brut||0) - (tare||0),
+    humidite: parseFloat(document.getElementById('op-humidite').value) || null,
+    impuretes: parseFloat(document.getElementById('op-impuretes').value) || null,
+    fournisseur: document.getElementById('op-fournisseur').value,
+    fournisseurVille: document.getElementById('op-fournisseur-ville') ? document.getElementById('op-fournisseur-ville').value : '',
+    client: document.getElementById('op-client').value,
+    clientVille: document.getElementById('op-client-ville') ? document.getElementById('op-client-ville').value : '',
+    transporteur: '',
+    vehicule: document.getElementById('op-vehicule').value,
+    chauffeur: document.getElementById('op-chauffeur').value,
+    chauffeurNom: document.getElementById('op-chauffeur-nom') ? document.getElementById('op-chauffeur-nom').value : '',
+    chauffeurPrenom: document.getElementById('op-chauffeur-prenom') ? document.getElementById('op-chauffeur-prenom').value : '',
+    chauffeurVille: document.getElementById('op-chauffeur-ville') ? document.getElementById('op-chauffeur-ville').value : '',
+    bdc: document.getElementById('op-bdc').value,
+    obs: document.getElementById('op-obs').value
+  };
+  openTicketModal(tempOp);
+}
+
+function printCurrentTicket() {
+  if(!currentTicketOp) return;
+  const role = currentTicketTab;
+  const text = buildTicketText(currentTicketOp, role);
+  const tId  = ticketId(role, currentTicketOp);
+  const w = window.open('', '_blank');
+  // Generate QR as data URL using canvas if QRCode available
+  let qrHtml = `<div style="font-size:10px;font-family:monospace;">[QR: ${tId}]</div>`;
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+    <style>body{font-family:monospace;font-size:12px;margin:20px;} @media print{body{margin:8px;}}</style>
+  </head><body>
+    <pre style="white-space:pre-wrap;">${text}</pre>
+    <div id="qr" style="text-align:center;margin-top:8px;"></div>
+    <script>
+      if(typeof QRCode !== 'undefined'){
+        new QRCode(document.getElementById('qr'), {text:'${tId}',width:80,height:80});
+      }
+      setTimeout(()=>window.print(), 600);
+    <\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+function printAllTickets() {
+  if(!currentTicketOp) return;
+  const op = currentTicketOp;
+  const roles = ['transporteur','producteur','acheteur'];
+  const w = window.open('', '_blank');
+  const pages = roles.map(role => {
+    const text = buildTicketText(op, role);
+    const tId  = ticketId(role, op);
+    return `<div class="page"><pre style="white-space:pre-wrap;">${text}</pre>
+      <div id="qr-${role}" style="text-align:center;margin-top:6px;"></div>
+      <script>if(typeof QRCode!=='undefined') new QRCode(document.getElementById('qr-${role}'),{text:'${tId}',width:80,height:80});<\/script>
+    </div>`;
+  }).join('<div class="pb"></div>');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+    <style>
+      body{font-family:monospace;font-size:11px;margin:0;}
+      .page{padding:14px;page-break-after:always;}
+      .page:last-child{page-break-after:auto;}
+      .pb{page-break-after:always;}
+      @media print{.pb{display:none;}}
+    </style>
+  </head><body>${pages}
+    <script>setTimeout(()=>window.print(), 800);<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+let printDetailOpData = null;
+function printDetailTicket() {
+  if(!printDetailOpData) return;
+  openTicketModal(printDetailOpData);
+}
+
+// ================================================================
+// OPÉRATIONS TABLE
+// ================================================================
+function loadOperations() {
+  filteredOps = [...allOperations];
+  filterOps();
+}
+
+function filterOps() {
+  const search = document.getElementById('search-ops').value.toLowerCase();
+  const typeFilter = document.getElementById('filter-type').value;
+  const dateFrom = document.getElementById('filter-date-from').value;
+  const dateTo = document.getElementById('filter-date-to').value;
+
+  filteredOps = allOperations.filter(op => {
+    if(typeFilter && op.opType !== typeFilter) return false;
+    if(dateFrom && op.date < dateFrom) return false;
+    if(dateTo && op.date > dateTo + 'T23:59') return false;
+    if(search) {
+      const hay = [op.vehicule, op.client, op.fournisseur, op.produit, op.transporteur, op.bdc, op.chauffeur, op.seq+''].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  renderOpsTable(filteredOps);
+}
+
+function renderOpsTable(ops) {
+  const tbody = document.getElementById('ops-tbody');
+  if(ops.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px;">Aucune opération trouvée</td></tr>';
+    document.getElementById('ops-count').textContent = '';
+    return;
+  }
+  const sorted = [...ops].reverse();
+  tbody.innerHTML = sorted.map(op => `
+    <tr>
+      <td class="gold">${op.seq}</td>
+      <td>${new Date(op.date).toLocaleDateString('fr-FR')}<br><small style="color:var(--text3)">${new Date(op.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</small></td>
+      <td><span class="badge badge-${op.opType}">${op.opType === 'entree' ? '↓ Entrée' : '↑ Sortie'}</span></td>
+      <td class="bold">${op.produit}</td>
+      <td class="green">${op.poidsnet.toLocaleString('fr-FR')}</td>
+      <td>${op.vehicule || '—'}</td>
+      <td>${op.opType === 'entree' ? (op.fournisseur || '—') : (op.client || '—')}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="showDetail('${op.id}')">👁️</button></td>
+    </tr>
+  `).join('');
+  document.getElementById('ops-count').textContent = `${ops.length} opération(s) affichée(s) sur ${allOperations.length}`;
+}
+
+function showDetail(id) {
+  const op = allOperations.find(o => o.id === id);
+  if(!op) return;
+  currentDetailOp = op;
+  printDetailOpData = op;
+  const chauffeurFull = [op.chauffeurNom, op.chauffeurPrenom].filter(Boolean).join(' ') || op.chauffeur || '—';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="net-weight-grid" style="margin-bottom:12px;">
+      <div class="net-box"><div class="nb-label">Poids Brut</div><div class="nb-val">${op.poidsbrut.toLocaleString('fr-FR')} kg</div></div>
+      <div class="net-box"><div class="nb-label">Poids Vide</div><div class="nb-val">${op.poidstare.toLocaleString('fr-FR')} kg</div></div>
+      <div class="net-box highlight"><div class="nb-label">Poids Net</div><div class="nb-val">${op.poidsnet.toLocaleString('fr-FR')} kg</div></div>
+    </div>
+    <div class="info-row"><span class="ir-key">N° Séq.</span><span class="ir-val">${op.seq}</span></div>
+    <div class="info-row"><span class="ir-key">Type</span><span class="ir-val"><span class="badge badge-${op.opType}">${op.opType}</span></span></div>
+    <div class="info-row"><span class="ir-key">Date</span><span class="ir-val">${new Date(op.date).toLocaleString('fr-FR')}</span></div>
+    <div class="info-row"><span class="ir-key">Produit</span><span class="ir-val">${op.produit}</span></div>
+    <div class="info-row"><span class="ir-key">Campagne</span><span class="ir-val">${op.campagne||'—'}</span></div>
+    <div class="info-row"><span class="ir-key">Humidité</span><span class="ir-val">${op.humidite != null ? op.humidite + '%' : '—'}</span></div>
+    <div class="info-row"><span class="ir-key">Impuretés</span><span class="ir-val">${op.impuretes != null ? op.impuretes + '%' : '—'}</span></div>
+    <div class="info-row"><span class="ir-key">Producteur</span><span class="ir-val">${op.fournisseur||'—'}${op.fournisseurVille ? ' · ' + op.fournisseurVille : ''}</span></div>
+    <div class="info-row"><span class="ir-key">Client</span><span class="ir-val">${op.client||'—'}${op.clientVille ? ' · ' + op.clientVille : ''}</span></div>
+    <div class="info-row"><span class="ir-key">Véhicule</span><span class="ir-val">${op.vehicule||'—'}</span></div>
+    <div class="info-row"><span class="ir-key">Chauffeur</span><span class="ir-val">${chauffeurFull}${op.chauffeurVille ? ' · ' + op.chauffeurVille : ''}</span></div>
+    <div class="info-row"><span class="ir-key">N° BL</span><span class="ir-val">${op.bdc||'—'}</span></div>
+    <div class="info-row"><span class="ir-key">Observations</span><span class="ir-val" style="max-width:200px;text-align:right;">${op.obs||'—'}</span></div>
+  `;
+  document.getElementById('btn-delete-op').dataset.id = id;
+  openModal('detail-modal');
+}
+
+async function deleteCurrentOp() {
+  if(!currentDetailOp) return;
+  if(!confirm('Supprimer cette opération ?')) return;
+  allOperations = allOperations.filter(o => o.id !== currentDetailOp.id);
+  await rewriteFile();
+  showToast('🗑️ Opération supprimée', 'success');
+  closeModal('detail-modal');
+  loadOperations();
+  updateFileStatus();
+}
+
+// ================================================================
+// STATS
+// ================================================================
+function computeStats() {
+  const ops = allOperations;
+  document.getElementById('stat-total-ops').textContent = ops.length;
+  const totalNet = ops.reduce((s,o) => s + o.poidsnet, 0);
+  document.getElementById('stat-total-net').textContent = (totalNet/1000).toFixed(1);
+  document.getElementById('stat-entrees').textContent = ops.filter(o => o.opType === 'entree').length;
+  document.getElementById('stat-sorties').textContent = ops.filter(o => o.opType === 'sortie').length;
+
+  // Par produit
+  const byProd = {};
+  ops.forEach(op => {
+    if(!byProd[op.produit]) byProd[op.produit] = {entrees:0, sorties:0, count:0};
+    byProd[op.produit].count++;
+    if(op.opType === 'entree') byProd[op.produit].entrees += op.poidsnet;
+    else byProd[op.produit].sorties += op.poidsnet;
+  });
+  document.getElementById('stats-produits-tbody').innerHTML = Object.entries(byProd).map(([p,d]) => `
+    <tr>
+      <td class="bold">${p}</td>
+      <td>${d.count}</td>
+      <td class="green">${d.entrees.toLocaleString('fr-FR')}</td>
+      <td class="red">${d.sorties.toLocaleString('fr-FR')}</td>
+      <td class="gold">${(d.entrees - d.sorties).toLocaleString('fr-FR')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px;">—</td></tr>';
+
+  // Par véhicule
+  const byTransp = {};
+  ops.forEach(op => {
+    const t = op.vehicule || 'Non renseigné';
+    if(!byTransp[t]) byTransp[t] = {count:0, tonnage:0};
+    byTransp[t].count++;
+    byTransp[t].tonnage += op.poidsnet;
+  });
+  document.getElementById('stats-transp-tbody').innerHTML = Object.entries(byTransp).sort((a,b) => b[1].tonnage - a[1].tonnage).map(([t,d]) => `
+    <tr>
+      <td class="bold">${t}</td>
+      <td>${d.count}</td>
+      <td class="green">${d.tonnage.toLocaleString('fr-FR')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">—</td></tr>';
+}
+
+// ================================================================
+// RÉFÉRENTIELS
+// ================================================================
+function renderRefs() {
+  renderRefList('produits');
+  renderRefList('clients');
+  renderRefList('fournisseurs');
+  renderRefList('vehicules');
+  renderChauffeursList();
+}
+
+function renderRefList(key) {
+  const el = document.getElementById('list-' + key);
+  if(!el) return;
+  if(refs[key].length === 0) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Aucun élément</div>'; return; }
+  el.innerHTML = refs[key].map((v,i) => `
+    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;margin:3px;">
+      ${v}
+      <span onclick="removeRef('${key}',${i})" style="cursor:pointer;color:var(--red);font-size:14px;line-height:1;">×</span>
+    </span>
+  `).join('');
+}
+
+function addRef(key, inputId) {
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if(!val) return;
+  if(refs[key].includes(val)) { showToast('Déjà présent', 'error'); return; }
+  refs[key].push(val);
+  refs[key].sort();
+  input.value = '';
+  renderRefList(key);
+  populateSelectsFromRefs();
+}
+
+function removeRef(key, idx) {
+  refs[key].splice(idx, 1);
+  renderRefList(key);
+  populateSelectsFromRefs();
+}
+
+async function saveRefs() {
+  await appendToFile({type:'refs', data: refs, date: new Date().toISOString()});
+  showToast('✅ Référentiels sauvegardés', 'success');
+}
+
+function populateSelectsFromRefs() {
+  populateSelect('op-produit', refs.produits);
+  // Sélectionner Palmier à huile par défaut si aucun produit sélectionné
+  const prodEl = document.getElementById('op-produit');
+  if(prodEl && !prodEl.value && refs.produits.includes('Palmier à huile')) {
+    prodEl.value = 'Palmier à huile';
+  }
+  populateSelect('op-fournisseur', refs.fournisseurs);
+  populateSelect('op-vehicule', refs.vehicules);
+  populateSelect('export-produit', refs.produits);
+  populateSelect('new-chauffeur-vehicule', refs.vehicules);
+}
+
+function populateSelect(id, items) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const cur = el.value;
+  el.innerHTML = '<option value="">— Sélectionner —</option>' + items.map(v => `<option value="${v}" ${v===cur?'selected':''}>${v}</option>`).join('');
+}
+
+// ================================================================
+// CHAUFFEURS
+// ================================================================
+function renderChauffeursList() {
+  const el = document.getElementById('list-chauffeurs');
+  if(!el) return;
+  if(!refs.chauffeurs || refs.chauffeurs.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Aucun chauffeur enregistré</div>';
+    return;
+  }
+  el.innerHTML = refs.chauffeurs.map((c, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;">
+      <div>
+        <span style="color:var(--text);font-weight:600;">🧑‍✈️ ${c.nom} ${c.prenom || ''}</span>
+        ${c.ville ? `<span style="color:var(--text3);margin-left:6px;">· ${c.ville}</span>` : ''}
+        ${c.vehicule ? `<span style="margin-left:8px;background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3);border-radius:12px;padding:2px 8px;">🚚 ${c.vehicule}</span>` : ''}
+      </div>
+      <span onclick="removeChauffeur(${i})" style="cursor:pointer;color:var(--red);font-size:16px;line-height:1;margin-left:8px;">×</span>
+    </div>
+  `).join('');
+}
+
+function addChauffeur() {
+  const nom = document.getElementById('new-chauffeur-nom').value.trim();
+  if(!nom) { showToast('Saisir le nom du chauffeur', 'error'); return; }
+  const prenom = document.getElementById('new-chauffeur-prenom').value.trim();
+  const ville = document.getElementById('new-chauffeur-ville').value.trim();
+  const vehicule = document.getElementById('new-chauffeur-vehicule').value;
+  if(!refs.chauffeurs) refs.chauffeurs = [];
+  refs.chauffeurs.push({ nom, prenom, ville, vehicule });
+  document.getElementById('new-chauffeur-nom').value = '';
+  document.getElementById('new-chauffeur-prenom').value = '';
+  document.getElementById('new-chauffeur-ville').value = '';
+  document.getElementById('new-chauffeur-vehicule').value = '';
+  renderChauffeursList();
+  showToast('✅ Chauffeur ajouté', 'success');
+}
+
+function removeChauffeur(idx) {
+  refs.chauffeurs.splice(idx, 1);
+  renderChauffeursList();
+}
+
+function onVehiculeChange() {
+  const vehicule = document.getElementById('op-vehicule').value;
+  const nomEl = document.getElementById('op-chauffeur-nom');
+  const prenomEl = document.getElementById('op-chauffeur-prenom');
+  const villeEl = document.getElementById('op-chauffeur-ville');
+  if(!vehicule || !refs.chauffeurs || refs.chauffeurs.length === 0) {
+    nomEl.value = '';
+    prenomEl.value = '';
+    villeEl.value = '';
+    nomEl.placeholder = 'Sélectionnez un véhicule...';
+    return;
+  }
+  const chauffeur = refs.chauffeurs.find(c => c.vehicule === vehicule);
+  if(chauffeur) {
+    nomEl.value = chauffeur.nom || '';
+    prenomEl.value = chauffeur.prenom || '';
+    villeEl.value = chauffeur.ville || '';
+    nomEl.placeholder = chauffeur.nom || '—';
+  } else {
+    nomEl.value = '';
+    prenomEl.value = '';
+    villeEl.value = '';
+    nomEl.placeholder = 'Aucun chauffeur lié';
+  }
+}
+
+// ================================================================
+// CONFIG
+// ================================================================
+function loadConfigToForm() {
+  document.getElementById('cfg-nom').value = config.nom || '';
+  document.getElementById('cfg-adresse').value = config.adresse || '';
+  document.getElementById('cfg-tel').value = config.tel || '';
+  document.getElementById('cfg-rccm').value = config.rccm || '';
+  document.getElementById('cfg-campagne').value = config.campagne || '';
+  document.getElementById('cfg-capacite').value = config.capacite || 60000;
+  document.getElementById('cfg-unite').value = config.unite || 'kg';
+  document.getElementById('cfg-seq').value = config.seq || 1;
+  const prixActuel = getPrixActuel();
+  if(prixActuel) {
+    document.getElementById('cfg-prix-graine').value = prixActuel.graine || '';
+    document.getElementById('cfg-prix-transport').value = prixActuel.transport || '';
+    document.getElementById('cfg-prix-date').value = prixActuel.date || '';
+  } else {
+    document.getElementById('cfg-prix-date').value = new Date().toISOString().slice(0,10);
+  }
+  renderOperateursList();
+}
+
+async function saveConfig() {
+  config.nom = document.getElementById('cfg-nom').value;
+  config.adresse = document.getElementById('cfg-adresse').value;
+  config.tel = document.getElementById('cfg-tel').value;
+  config.rccm = document.getElementById('cfg-rccm').value;
+  config.campagne = document.getElementById('cfg-campagne').value;
+  config.capacite = parseInt(document.getElementById('cfg-capacite').value) || 60000;
+  config.unite = document.getElementById('cfg-unite').value;
+  config.seq = parseInt(document.getElementById('cfg-seq').value) || 1;
+  await appendToFile({type:'config', data: config, date: new Date().toISOString()});
+  showToast('✅ Configuration sauvegardée', 'success');
+}
+
+function loadLocalConfig() {
+  // No localStorage usage — config loaded from file only
+  loadConfigToForm();
+}
+
+// ================================================================
+// EXPORT
+// ================================================================
+function populateExportSelects() {
+  populateSelect('export-produit', refs.produits);
+}
+
+function getFilteredExportOps() {
+  const from = document.getElementById('export-date-from').value;
+  const to = document.getElementById('export-date-to').value;
+  const type = document.getElementById('export-type').value;
+  const produit = document.getElementById('export-produit').value;
+  return allOperations.filter(op => {
+    if(from && op.date < from) return false;
+    if(to && op.date > to + 'T23:59') return false;
+    if(type && op.opType !== type) return false;
+    if(produit && op.produit !== produit) return false;
+    return true;
+  });
+}
+
+function exportCSV() {
+  const ops = getFilteredExportOps();
+  if(ops.length === 0) { showToast('Aucune donnée à exporter', 'error'); return; }
+  const headers = ['Seq','ID','Type','Date','Produit','Campagne','PoidsBrut_kg','PoidsVide_kg','PoidsNet_kg','PoidsNet_t','Humidite_pct','Impuretes_pct','Producteur','ProdVille','Client','ClientVille','Vehicule','ChauffeurNom','ChauffeurPrenom','ChauffeurVille','BonLivraison','Observations'];
+  const rows = ops.map(op => [
+    op.seq, op.id, op.opType, op.date, op.produit, op.campagne,
+    op.poidsbrut, op.poidstare, op.poidsnet, (op.poidsnet/1000).toFixed(3),
+    op.humidite??'', op.impuretes??'',
+    op.fournisseur||'', op.fournisseurVille||'',
+    op.client||'', op.clientVille||'',
+    op.vehicule||'',
+    op.chauffeurNom||op.chauffeur||'', op.chauffeurPrenom||'', op.chauffeurVille||'',
+    op.bdc||'',
+    (op.obs||'').replace(/\n/g,' ')
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  downloadText(csv, `pont_bascule_export_${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
+  showToast(`✅ ${ops.length} lignes exportées`, 'success');
+}
+
+function exportJSON() {
+  const ops = getFilteredExportOps();
+  if(ops.length === 0) { showToast('Aucune donnée à exporter', 'error'); return; }
+  downloadText(JSON.stringify(ops, null, 2), `pont_bascule_export_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  showToast(`✅ ${ops.length} opérations exportées`, 'success');
+}
+
+function generateReport() {
+  const ops = getFilteredExportOps();
+  const totalEntrees = ops.filter(o=>o.opType==='entree').reduce((s,o)=>s+o.poidsnet,0);
+  const totalSorties = ops.filter(o=>o.opType==='sortie').reduce((s,o)=>s+o.poidsnet,0);
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Rapport Pont Bascule</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:12px;margin:20px;}
+    h1{font-size:18px;} h2{font-size:14px;border-bottom:1px solid #ccc;padding-bottom:4px;margin-top:16px;}
+    table{width:100%;border-collapse:collapse;margin-top:8px;}
+    th{background:#f0f0f0;padding:6px 8px;text-align:left;font-size:11px;border:1px solid #ddd;}
+    td{padding:5px 8px;border:1px solid #eee;font-size:11px;}
+    .sum{font-weight:bold;} .green{color:green;} .red{color:red;}
+    @media print{body{margin:0;}}
+  </style></head><body>
+  <h1>📋 RAPPORT PONT BASCULE</h1>
+  <p><strong>${config.nom}</strong> — ${config.adresse || ''}</p>
+  <p>Généré le ${new Date().toLocaleString('fr-FR')} | ${ops.length} opérations</p>
+  <h2>Résumé</h2>
+  <table><tr><th>Total Entrées</th><th>Total Sorties</th><th>Différence</th></tr>
+  <tr><td class="green sum">${totalEntrees.toLocaleString('fr-FR')} kg</td>
+      <td class="red sum">${totalSorties.toLocaleString('fr-FR')} kg</td>
+      <td class="sum">${(totalEntrees-totalSorties).toLocaleString('fr-FR')} kg</td></tr></table>
+  <h2>Détail</h2>
+  <table><tr><th>N°</th><th>Date</th><th>Type</th><th>Produit</th><th>Net(kg)</th><th>Véhicule</th><th>Client/Fourn.</th></tr>
+  ${ops.reverse().map(op=>`<tr><td>${op.seq}</td><td>${new Date(op.date).toLocaleString('fr-FR')}</td>
+    <td>${op.opType}</td><td>${op.produit}</td>
+    <td class="${op.opType==='entree'?'green':'red'}">${op.poidsnet.toLocaleString('fr-FR')}</td>
+    <td>${op.vehicule||'—'}</td>
+    <td>${op.opType==='entree'?(op.fournisseur||'—'):(op.client||'—')}</td></tr>`).join('')}
+  </table>
+  <script>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+
+function downloadText(content, filename, mimeType) {
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// MODALS & TOAST
+// ================================================================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let toastTimer;
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target === el) closeModal(el.id); });
+});
+
+// ================================================================
+// SW (PWA)
+// ================================================================
+// ================================================================
+// PRIX — Gestion des prix
+// ================================================================
+function getPrixActuel() {
+  if(!historiquePrix || historiquePrix.length === 0) return null;
+  const today = new Date().toISOString().slice(0,10);
+  // Trouver le prix le plus récent dont la date <= aujourd'hui
+  const valides = historiquePrix.filter(p => p.date <= today);
+  if(valides.length === 0) return historiquePrix[historiquePrix.length - 1];
+  return valides[0]; // déjà triés desc
+}
+
+function updatePrixPreview() {
+  const g = parseFloat(document.getElementById('cfg-prix-graine').value) || 0;
+  const t = parseFloat(document.getElementById('cfg-prix-transport').value) || 0;
+  const el = document.getElementById('prix-preview');
+  if(g > 0 || t > 0) {
+    el.style.display = 'block';
+    el.innerHTML = `Aperçu : 1 000 kg × ${g.toLocaleString('fr-FR')} FCFA/kg = <strong>${(1000*g).toLocaleString('fr-FR')} FCFA</strong> graine &nbsp;|&nbsp; transport: <strong>${(1000*t).toLocaleString('fr-FR')} FCFA</strong>`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function savePrix() {
+  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  const graine = parseFloat(document.getElementById('cfg-prix-graine').value);
+  const transport = parseFloat(document.getElementById('cfg-prix-transport').value);
+  const date = document.getElementById('cfg-prix-date').value;
+  if(!graine && !transport) { showToast('Saisir au moins un prix', 'error'); return; }
+  if(!date) { showToast('Saisir la date de validité', 'error'); return; }
+
+  const prixEntry = { date, graine: graine||0, transport: transport||0, savedAt: new Date().toISOString(), ticketsLies: [] };
+  // Calculer les tickets liés (opérations de cette date)
+  prixEntry.ticketsLies = allOperations
+    .filter(op => op.date && op.date.slice(0,10) >= date)
+    .filter(op => {
+      // Pas encore couverts par un prix plus récent
+      const plusRecent = historiquePrix.find(p => p.date > date && p.date <= op.date.slice(0,10));
+      return !plusRecent;
+    })
+    .map(op => ticketId('transporteur', op));
+
+  // Remplacer si même date, sinon ajouter
+  const existIdx = historiquePrix.findIndex(p => p.date === date);
+  if(existIdx >= 0) {
+    historiquePrix[existIdx] = prixEntry;
+  } else {
+    historiquePrix.unshift(prixEntry);
+    historiquePrix.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  }
+
+  await appendToFile({type:'prix', data: prixEntry, date: new Date().toISOString()});
+  renderHistoriquePrix();
+  showToast('✅ Prix enregistré !', 'success');
+}
+
+function renderHistoriquePrix() {
+  const el = document.getElementById('historique-prix-list');
+  if(!el) return;
+  if(!historiquePrix || historiquePrix.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Aucun historique disponible</div>';
+    return;
+  }
+  el.innerHTML = historiquePrix.map((p, i) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;color:var(--gold);">📅 À partir du ${p.date}</div>
+        ${i === 0 ? '<span style="background:rgba(76,175,80,0.2);color:var(--green2);border:1px solid rgba(76,175,80,0.3);border-radius:12px;padding:2px 8px;font-size:10px;font-weight:700;">ACTUEL</span>' : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+        <div style="font-size:12px;color:var(--text2);">🌾 Graine: <span style="color:var(--green2);font-weight:600;">${(p.graine||0).toLocaleString('fr-FR')} FCFA/kg</span></div>
+        <div style="font-size:12px;color:var(--text2);">🚚 Transport: <span style="color:var(--blue);font-weight:600;">${(p.transport||0).toLocaleString('fr-FR')} FCFA/kg</span></div>
+      </div>
+      ${p.ticketsLies && p.ticketsLies.length > 0 ? `
+        <div style="font-size:11px;color:var(--text3);">Tickets liés (${p.ticketsLies.length}) : 
+          <span style="font-family:'DM Mono',monospace;">${p.ticketsLies.slice(0,5).join(', ')}${p.ticketsLies.length > 5 ? '...' : ''}</span>
+        </div>` : '<div style="font-size:11px;color:var(--text3);">Aucun ticket lié</div>'}
+    </div>
+  `).join('');
+}
+
+// ================================================================
+// PAIEMENTS
+// ================================================================
+let pendingDecocherTicket = null;
+
+function getAllTicketIds(op) {
+  return ['transporteur','producteur','acheteur'].map(role => ({
+    role,
+    id: ticketId(role, op),
+    label: role === 'transporteur' ? '🚚 Transporteur' : role === 'producteur' ? '🌾 Producteur' : '👤 Acheteur'
+  }));
+}
+
+function loadPaiements() {
+  const groupe = document.getElementById('filter-pay-groupe').value;
+  const statut = document.getElementById('filter-pay-statut').value;
+  const search = (document.getElementById('filter-pay-search').value || '').toLowerCase();
+
+  // Grouper les opérations par acteur selon le groupe sélectionné
+  const grouped = {};
+  allOperations.forEach(op => {
+    let acteur = '';
+    if(groupe === 'transporteur') acteur = op.vehicule || op.chauffeurNom || 'Inconnu';
+    else if(groupe === 'acheteur') acteur = op.client || 'Inconnu';
+    else acteur = op.fournisseur || 'Inconnu';
+
+    if(search && !acteur.toLowerCase().includes(search) && !op.seq.toString().includes(search)) return;
+
+    if(!grouped[acteur]) grouped[acteur] = [];
+    grouped[acteur].push(op);
+  });
+
+  // Calculer résumé
+  let totalPaye = 0, totalNonPaye = 0, totalOps = 0;
+  allOperations.forEach(op => {
+    const tId = ticketId(groupe === 'transporteur' ? 'transporteur' : groupe === 'acheteur' ? 'acheteur' : 'producteur', op);
+    const pay = paiementsData[tId];
+    const montant = calcMontantTicket(op, groupe);
+    totalOps++;
+    if(pay && pay.paye) totalPaye += montant;
+    else totalNonPaye += montant;
+  });
+
+  document.getElementById('pay-summary').innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Total Opérations</div>
+      <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--gold);">${totalOps}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid rgba(76,175,80,0.4);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">✅ Payé</div>
+      <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--green2);">${totalPaye.toLocaleString('fr-FR')}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid rgba(201,168,76,0.4);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">⏳ Non payé</div>
+      <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--gold);">${totalNonPaye.toLocaleString('fr-FR')}</div>
+    </div>
+  `;
+
+  const list = document.getElementById('paiements-list');
+  if(Object.keys(grouped).length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;">Aucune donnée</div>';
+    return;
+  }
+
+  list.innerHTML = Object.entries(grouped).sort((a,b) => a[0].localeCompare(b[0])).map(([acteur, ops]) => {
+    const role = groupe === 'transporteur' ? 'transporteur' : groupe === 'acheteur' ? 'acheteur' : 'producteur';
+    const tickets = ops.map(op => {
+      const tId = ticketId(role, op);
+      const pay = paiementsData[tId];
+      const paye = pay && pay.paye;
+      const montant = calcMontantTicket(op, groupe);
+      if(statut === 'paye' && !paye) return '';
+      if(statut === 'non_paye' && paye) return '';
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${paye ? 'rgba(76,175,80,0.08)' : 'var(--surface2)'};border:1px solid ${paye ? 'rgba(76,175,80,0.3)' : 'var(--border)'};border-radius:8px;margin-bottom:6px;${paye ? 'opacity:0.8;' : ''}">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:${paye ? 'var(--green2)' : 'var(--text)'};">
+              ${paye ? '<s>' : ''}N° ${op.seq} — ${new Date(op.date).toLocaleDateString('fr-FR')}${paye ? '</s>' : ''}
+            </div>
+            <div style="font-size:11px;color:var(--text3);">${op.produit} · ${(op.poidsnet/1000).toFixed(3)} t · <span style="color:var(--gold);font-weight:600;">${montant.toLocaleString('fr-FR')} FCFA</span></div>
+            <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">${tId}</div>
+            ${paye && pay.datePaiement ? `<div style="font-size:10px;color:var(--green2);">✅ Payé le ${new Date(pay.datePaiement).toLocaleString('fr-FR')}</div>` : ''}
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;">
+            <input type="checkbox" ${paye ? 'checked' : ''} onchange="togglePaiement('${tId}', this, '${op.id}')"
+              style="width:20px;height:20px;cursor:pointer;accent-color:var(--green);">
+            <span style="font-size:11px;color:${paye ? 'var(--green2)' : 'var(--text3)'};">${paye ? 'Payé' : 'Payer'}</span>
+          </label>
+        </div>
+      `;
+    }).filter(Boolean).join('');
+
+    if(!tickets) return '';
+
+    const acteurTotal = ops.reduce((s, op) => {
+      const tId = ticketId(role, op);
+      const pay = paiementsData[tId];
+      if(statut === 'paye' && !(pay&&pay.paye)) return s;
+      if(statut === 'non_paye' && (pay&&pay.paye)) return s;
+      return s + calcMontantTicket(op, groupe);
+    }, 0);
+
+    const acteurPaye = ops.filter(op => { const p = paiementsData[ticketId(role, op)]; return p && p.paye; }).length;
+
+    return `
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${acteur}</div>
+          <div style="font-size:11px;color:var(--text3);">${acteurPaye}/${ops.length} payés · <span style="color:var(--gold);font-weight:600;">${acteurTotal.toLocaleString('fr-FR')} FCFA</span></div>
+        </div>
+        ${tickets}
+      </div>
+    `;
+  }).filter(Boolean).join('');
+
+  if(!list.innerHTML.trim()) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;">Aucun résultat pour ce filtre</div>';
+  }
+}
+
+function calcMontantTicket(op, groupe) {
+  const prixActuel = getPrixActuelPourOp(op);
+  if(!prixActuel) return 0;
+  const kg = op.poidsnet || 0;
+  if(groupe === 'transporteur') return Math.round(kg * (prixActuel.transport || 0));
+  return Math.round(kg * (prixActuel.graine || 0));
+}
+
+function getPrixActuelPourOp(op) {
+  const opDate = op.date ? op.date.slice(0,10) : '';
+  if(!historiquePrix || historiquePrix.length === 0) return null;
+  const valides = historiquePrix.filter(p => p.date <= opDate);
+  if(valides.length === 0) return historiquePrix[historiquePrix.length - 1];
+  return valides[0];
+}
+
+async function togglePaiement(ticketId, checkbox, opId) {
+  const currentPaye = checkbox.checked;
+  if(!currentPaye) {
+    // On essaie de DÉCOCHER — protéger par mot de passe
+    checkbox.checked = true; // Remettre coché
+    pendingDecocherTicket = { ticketId, opId };
+    document.getElementById('mdp-input').value = '';
+    document.getElementById('mdp-error').style.display = 'none';
+    openModal('mdp-modal');
+    return;
+  }
+  // Cocher = marquer comme payé
+  await marquerPayement(ticketId, opId, true);
+  loadPaiements();
+}
+
+async function marquerPayement(tId, opId, paye) {
+  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+  const record = {
+    type: 'paiement',
+    ticketId: tId,
+    opId,
+    paye,
+    datePaiement: paye ? new Date().toISOString() : null,
+    savedAt: new Date().toISOString()
+  };
+  paiementsData[tId] = record;
+  await appendToFile(record);
+  showToast(paye ? '✅ Marqué comme payé' : '🔓 Paiement annulé', paye ? 'success' : '');
+}
+
+async function confirmerDecocher() {
+  const mdp = document.getElementById('mdp-input').value;
+  // Mot de passe: config.mdp ou défaut "1234"
+  const mdpRef = config.mdpOperateur || '1234';
+  if(mdp !== mdpRef) {
+    document.getElementById('mdp-error').style.display = 'block';
+    document.getElementById('mdp-input').value = '';
+    return;
+  }
+  closeModal('mdp-modal');
+  if(pendingDecocherTicket) {
+    await marquerPayement(pendingDecocherTicket.ticketId, pendingDecocherTicket.opId, false);
+    pendingDecocherTicket = null;
+    loadPaiements();
+  }
+}
+
+// ================================================================
+// SCANNER CAMÉRA — html5-qrcode + PANIER
+// ================================================================
+function initScanner() {
+  const prixActuel = getPrixActuel();
+  if(prixActuel) {
+    document.getElementById('scan-prix-graine').textContent = (prixActuel.graine||0).toLocaleString('fr-FR');
+    document.getElementById('scan-prix-transport').textContent = (prixActuel.transport||0).toLocaleString('fr-FR');
+    document.getElementById('scan-prix-badge').textContent = 'Valable depuis le ' + prixActuel.date;
+  } else {
+    document.getElementById('scan-prix-graine').textContent = '—';
+    document.getElementById('scan-prix-transport').textContent = '—';
+    document.getElementById('scan-prix-badge').textContent = 'Aucun prix configuré';
+  }
+  renderPanier();
+}
+
+function startQRScanner() {
+  if(!window.Html5Qrcode) { showToast('⚠️ Bibliothèque QR non chargée', 'error'); return; }
+  if(qrScanner) stopQRScanner();
+
+  document.getElementById('btn-start-scan').style.display = 'none';
+  document.getElementById('btn-stop-scan').style.display = 'inline-flex';
+  document.getElementById('scan-status').textContent = '🔍 Initialisation caméra...';
+
+  qrScanner = new Html5Qrcode('qr-reader');
+  const config_qr = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+
+  qrScanner.start(
+    { facingMode: 'environment' },
+    config_qr,
+    (decodedText) => {
+      // Succès scan
+      beepScan();
+      ajouterTicketAuPanier(decodedText.trim());
+    },
+    (errorMsg) => { /* scan en cours, ignorer */ }
+  ).then(() => {
+    document.getElementById('scan-status').textContent = '✅ Caméra active — Pointez vers le QR code du ticket';
+  }).catch(err => {
+    document.getElementById('scan-status').textContent = '❌ Erreur caméra: ' + err;
+    document.getElementById('btn-start-scan').style.display = 'inline-flex';
+    document.getElementById('btn-stop-scan').style.display = 'none';
+    qrScanner = null;
+  });
+}
+
+function stopQRScanner() {
+  if(qrScanner) {
+    qrScanner.stop().catch(()=>{});
+    qrScanner = null;
+  }
+  document.getElementById('btn-start-scan').style.display = 'inline-flex';
+  document.getElementById('btn-stop-scan').style.display = 'none';
+  document.getElementById('scan-status').textContent = 'Scanner arrêté';
+}
+
+function beepScan() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    o.start(); o.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+}
+
+function ajouterTicketManuel() {
+  const val = document.getElementById('scan-ticket-input').value.trim();
+  if(!val) { showToast('Saisir un numéro de ticket', 'error'); return; }
+  ajouterTicketAuPanier(val.toUpperCase());
+  document.getElementById('scan-ticket-input').value = '';
+}
+
+function ajouterTicketAuPanier(ticketCode) {
+  ticketCode = ticketCode.trim().toUpperCase();
+  const alert = document.getElementById('scan-alert');
+
+  // Éviter doublons dans le panier
+  if(panier.find(p => p.ticketId === ticketCode)) {
+    alert.style.display = 'block';
+    alert.innerHTML = `<div style="background:rgba(201,168,76,0.15);border:1px solid var(--gold);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--gold);">⚠️ Ce ticket est déjà dans le panier.</div>`;
+    setTimeout(() => { alert.style.display = 'none'; }, 2500);
+    return;
+  }
+
+  // Chercher l'opération correspondante
+  let foundOp = null, foundRole = null;
+  for(const role of ['transporteur','producteur','acheteur']) {
+    const op = allOperations.find(o => ticketId(role, o).toUpperCase() === ticketCode);
+    if(op) { foundOp = op; foundRole = role; break; }
+  }
+  if(!foundOp && /^\d+$/.test(ticketCode)) {
+    foundOp = allOperations.find(o => o.seq.toString() === ticketCode);
+    foundRole = 'transporteur';
+  }
+
+  if(!foundOp) {
+    alert.style.display = 'block';
+    alert.innerHTML = `<div style="background:rgba(239,83,80,0.15);border:2px solid var(--red);border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:4px;">❌</div>
+      <div style="font-size:15px;font-weight:700;color:var(--red);">TICKET INTROUVABLE</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">${ticketCode}</div>
+    </div>`;
+    setTimeout(() => { alert.style.display = 'none'; }, 3000);
+    return;
+  }
+
+  const tId = ticketId(foundRole, foundOp);
+  const pay = paiementsData[tId];
+  if(pay && pay.paye) {
+    alert.style.display = 'block';
+    alert.innerHTML = `<div style="background:rgba(239,83,80,0.15);border:3px solid var(--red);border-radius:10px;padding:16px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:6px;">🚫</div>
+      <div style="font-size:17px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:1px;">TICKET ${foundRole.toUpperCase()} DÉJÀ PAYÉ</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:6px;">Payé le ${new Date(pay.datePaiement).toLocaleString('fr-FR')}</div>
+    </div>`;
+    setTimeout(() => { alert.style.display = 'none'; }, 4000);
+    return;
+  }
+
+  // Ajouter au panier
+  panier.push({ ticketId: tId, op: foundOp, role: foundRole });
+  renderPanier();
+  alert.style.display = 'block';
+  alert.innerHTML = `<div style="background:rgba(76,175,80,0.15);border:1px solid var(--green);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green2);">✅ Ticket N°${foundOp.seq} ajouté au panier</div>`;
+  setTimeout(() => { alert.style.display = 'none'; }, 2000);
+}
+
+function renderPanier() {
+  const card = document.getElementById('panier-card');
+  const itemsEl = document.getElementById('panier-items');
+  const countEl = document.getElementById('panier-count');
+
+  if(panier.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  countEl.textContent = panier.length;
+
+  let totalTonnage = 0, totalGraine = 0, totalTransport = 0;
+  let vehiculeNom = '', chauffeurNom = '';
+
+  itemsEl.innerHTML = panier.map((item, i) => {
+    const op = item.op;
+    const prixOp = getPrixActuelPourOp(op);
+    const kg = op.poidsnet || 0;
+    const mg = prixOp ? Math.round(kg * (prixOp.graine||0)) : 0;
+    const mt = prixOp ? Math.round(kg * (prixOp.transport||0)) : 0;
+    totalTonnage += kg;
+    totalGraine += mg;
+    totalTransport += mt;
+    if(op.vehicule) vehiculeNom = op.vehicule;
+    const cf = [op.chauffeurNom, op.chauffeurPrenom].filter(Boolean).join(' ') || op.chauffeur || '';
+    if(cf) chauffeurNom = cf;
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);">N° ${op.seq} — ${new Date(op.date).toLocaleDateString('fr-FR')}</div>
+          <div style="font-size:11px;color:var(--text3);">${op.produit} · ${(kg/1000).toFixed(3)} t · <span style="color:var(--gold);font-weight:600;">${mg.toLocaleString('fr-FR')} FCFA</span> graine + <span style="color:var(--blue);">${mt.toLocaleString('fr-FR')} FCFA</span> transport</div>
+          <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">${item.ticketId}</div>
+        </div>
+        <button onclick="retirerDuPanier(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;flex-shrink:0;">×</button>
+      </div>`;
+  }).join('');
+
+  // Infos véhicule
+  const vi = document.getElementById('panier-vehicule-info');
+  if(vehiculeNom) {
+    vi.style.display = 'block';
+    document.getElementById('panier-vehicule-nom').textContent = vehiculeNom;
+    document.getElementById('panier-chauffeur-nom').textContent = chauffeurNom || '—';
+  } else vi.style.display = 'none';
+
+  document.getElementById('panier-total-tonnage').textContent = (totalTonnage/1000).toFixed(3) + ' t';
+  document.getElementById('panier-total-graine').textContent = totalGraine.toLocaleString('fr-FR') + ' FCFA';
+  document.getElementById('panier-total-transport').textContent = totalTransport.toLocaleString('fr-FR') + ' FCFA';
+  document.getElementById('panier-btn-total').textContent = (totalGraine + totalTransport).toLocaleString('fr-FR') + ' FCFA';
+}
+
+function retirerDuPanier(idx) {
+  panier.splice(idx, 1);
+  renderPanier();
+}
+
+function viderPanier() {
+  if(!confirm('Vider le panier ?')) return;
+  panier = [];
+  renderPanier();
+}
+
+async function validerPaiementPanier() {
+  if(panier.length === 0) { showToast('Panier vide', 'error'); return; }
+  if(!fileHandle) { showToast('⚠️ Ouvrez d\'abord un fichier !', 'error'); return; }
+
+  for(const item of panier) {
+    await marquerPayement(item.ticketId, item.op.id, true);
+  }
+  const n = panier.length;
+  panier = [];
+  renderPanier();
+  loadPaiements();
+  showToast(`✅ ${n} ticket(s) marqués comme payés`, 'success');
+}
+
+// Fonction rechercherTicket conservée pour compatibilité paiements
+function rechercherTicket() { ajouterTicketManuel(); }
+function scanTicketInput() {}
+async function marquerPayeScan(tId, opId) {
+  await marquerPayement(tId, opId, true);
+  loadPaiements();
+}
+
+// ================================================================
+// OPÉRATEURS
+// ================================================================
+function renderOperateursList() {
+  const el = document.getElementById('list-operateurs');
+  const sel = document.getElementById('cfg-operateur-actif');
+  if(!el || !sel) return;
+  if(!refs.operateurs || refs.operateurs.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Aucun opérateur enregistré</div>';
+    sel.innerHTML = '<option value="">— Aucun —</option>';
+    return;
+  }
+  el.innerHTML = refs.operateurs.map((op, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px;">
+      <span style="color:var(--text);">👷 ${op}</span>
+      <span onclick="removeOperateur(${i})" style="cursor:pointer;color:var(--red);font-size:16px;line-height:1;">×</span>
+    </div>
+  `).join('');
+  const cur = config.operateurActif || '';
+  sel.innerHTML = '<option value="">— Aucun sélectionné —</option>' +
+    refs.operateurs.map(op => `<option value="${op}" ${op===cur?'selected':''}>${op}</option>`).join('');
+}
+
+async function addOperateur() {
+  const nom = document.getElementById('new-operateur-nom').value.trim();
+  if(!nom) { showToast('Saisir le nom de l\'opérateur', 'error'); return; }
+  if(!refs.operateurs) refs.operateurs = [];
+  if(refs.operateurs.includes(nom)) { showToast('Déjà présent', 'error'); return; }
+  refs.operateurs.push(nom);
+  document.getElementById('new-operateur-nom').value = '';
+  renderOperateursList();
+  await appendToFile({type:'refs', data: refs, date: new Date().toISOString()});
+  showToast('✅ Opérateur ajouté', 'success');
+}
+
+function removeOperateur(idx) {
+  refs.operateurs.splice(idx, 1);
+  renderOperateursList();
+}
+
+async function setOperateurActif() {
+  config.operateurActif = document.getElementById('cfg-operateur-actif').value;
+  await appendToFile({type:'config', data: config, date: new Date().toISOString()});
+  showToast('✅ Opérateur actif : ' + (config.operateurActif || 'aucun'), 'success');
+}
+
+// ================================================================
+// CONFIG — Mot de passe opérateur
+// ================================================================
+function saveMdpOperateur() {
+  const mdp = document.getElementById('cfg-mdp-operateur') ? document.getElementById('cfg-mdp-operateur').value : '';
+  if(mdp) { config.mdpOperateur = mdp; showToast('🔐 Mot de passe mis à jour', 'success'); }
+}
+
+if('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'pontbascule-v1';
+    self.addEventListener('install', e => { self.skipWaiting(); });
+    self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  const url = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).catch(()=>{});
+}
+</script>
+
+</body>
+</html>
