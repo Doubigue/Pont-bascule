@@ -631,6 +631,7 @@
       <div class="logo">🌾 Pont<span>Bascule</span></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
+    <a href="admin.html" style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;text-decoration:none;transition:all .2s;">⚙️ Admin</a>
     <div class="drive-status-badge" id="drive-status-btn" onclick="showDriveAuthOverlay()">
       <div class="drive-dot"></div>
       <span id="drive-status-text">Drive</span>
@@ -1504,7 +1505,8 @@
 const GOOGLE_CLIENT_ID = '370696807183-ojaufvcgsegt8if5d75nj60qf0eu718a.apps.googleusercontent.com';
 const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME = 'pont_bascule_data.ndjson';
-const DRIVE_FOLDER_NAME = 'PontBascule';
+const DRIVE_FOLDER_NAME = 'Pont bascule';
+let driveFolderId = null;
 
 let googleTokenClient = null;
 let driveAccessToken = null;
@@ -1551,6 +1553,7 @@ window.onload = async () => {
       gapiReady = true;
     });
     driveFileId = sessionStorage.getItem('drive_file_id') || null;
+    driveFolderId = sessionStorage.getItem('drive_folder_id') || null;
     updateDriveStatus();
     document.getElementById('drive-auth-overlay').classList.remove('open');
     if(driveFileId) {
@@ -1667,7 +1670,7 @@ function updateDriveStatus() {
     if(connectBtn) connectBtn.style.display = 'none';
     if(syncBtn) syncBtn.style.display = 'inline-flex';
     if(discBtn) discBtn.style.display = 'inline-flex';
-    if(infoEl) infoEl.innerHTML = `<div class="alert alert-success">✅ Connecté${email ? ' : <strong>'+email+'</strong>' : ''}</div><div class="info-row"><span class="ir-key">Fichier</span><span class="ir-val">${DRIVE_FILE_NAME}</span></div>`;
+    if(infoEl) infoEl.innerHTML = `<div class="alert alert-success">✅ Connecté${email ? ' : <strong>'+email+'</strong>' : ''}</div><div class="info-row"><span class="ir-key">Dossier Drive</span><span class="ir-val">📁 ${DRIVE_FOLDER_NAME}</span></div><div class="info-row"><span class="ir-key">Fichier</span><span class="ir-val">${DRIVE_FILE_NAME}</span></div>`;
   } else {
     if(connectBtn) connectBtn.style.display = 'inline-flex';
     if(syncBtn) syncBtn.style.display = 'none';
@@ -1679,10 +1682,12 @@ function updateDriveStatus() {
 function disconnectDrive() {
   driveAccessToken = null;
   driveFileId = null;
+  driveFolderId = null;
   driveConnected = false;
   sessionStorage.removeItem('drive_token');
   sessionStorage.removeItem('drive_email');
   sessionStorage.removeItem('drive_file_id');
+  sessionStorage.removeItem('drive_folder_id');
   updateDriveStatus();
   showToast('🔌 Drive déconnecté', '');
 }
@@ -1723,16 +1728,48 @@ async function driveRequest(method, url, body, extraHeaders) {
   }
 }
 
+async function getOrCreateDriveFolder() {
+  // Chercher le dossier existant
+  const res = await driveRequest('GET',
+    `https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(DRIVE_FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)&spaces=drive`
+  );
+  if (!res) return null;
+  const data = await res.json();
+  if (data.files && data.files.length > 0) {
+    driveFolderId = data.files[0].id;
+    sessionStorage.setItem('drive_folder_id', driveFolderId);
+    return driveFolderId;
+  }
+  // Créer le dossier
+  const createRes = await driveRequest('POST',
+    'https://www.googleapis.com/drive/v3/files',
+    JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+    { 'Content-Type': 'application/json' }
+  );
+  if (!createRes) return null;
+  const created = await createRes.json();
+  driveFolderId = created.id;
+  sessionStorage.setItem('drive_folder_id', driveFolderId);
+  showToast(`📁 Dossier "${DRIVE_FOLDER_NAME}" créé sur Drive`, 'success');
+  return driveFolderId;
+}
+
 async function initDriveFile() {
   showToast('🔍 Recherche du fichier Drive...', '');
-  // Chercher le fichier existant
+  // 1. Créer ou récupérer le dossier "Pont bascule"
+  const folderId = await getOrCreateDriveFolder();
+  // 2. Chercher le fichier dans ce dossier (ou à la racine pour rétrocompat)
+  const query = folderId
+    ? `name='${DRIVE_FILE_NAME}' and '${folderId}' in parents and trashed=false`
+    : `name='${DRIVE_FILE_NAME}' and trashed=false`;
   const res = await driveRequest('GET',
-    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}' and trashed=false&fields=files(id,name,modifiedTime)&spaces=drive`
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)&spaces=drive`
   );
   if (!res) return;
   const data = await res.json();
   if (data.files && data.files.length > 0) {
     driveFileId = data.files[0].id;
+    sessionStorage.setItem('drive_file_id', driveFileId);
     showToast('📂 Fichier Drive trouvé — Chargement...', '');
     await loadFromDrive();
   } else {
@@ -1743,7 +1780,8 @@ async function initDriveFile() {
 
 async function createDriveFile() {
   const initContent = JSON.stringify({type:'init', date: new Date().toISOString(), refs, config}) + '\n';
-  const metadata = { name: DRIVE_FILE_NAME, mimeType: 'application/x-ndjson' };
+  const parents = driveFolderId ? [driveFolderId] : [];
+  const metadata = { name: DRIVE_FILE_NAME, mimeType: 'application/x-ndjson', parents };
   const boundary = '-------314159265358979323846';
   const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/x-ndjson\r\n\r\n${initContent}\r\n--${boundary}--`;
   const res = await driveRequest('POST',
@@ -1754,7 +1792,8 @@ async function createDriveFile() {
   if (!res) return;
   const data = await res.json();
   driveFileId = data.id;
-  showToast('✅ Fichier Drive créé !', 'success');
+  sessionStorage.setItem('drive_file_id', driveFileId);
+  showToast(`✅ Fichier créé dans "${DRIVE_FOLDER_NAME}" sur Drive !`, 'success');
 }
 
 async function loadFromDrive() {
@@ -3579,21 +3618,29 @@ function renderPanier() {
 
   itemsEl.innerHTML = panier.map((item, i) => {
     const op = item.op;
+    const role = item.role;
     const prixOp = getPrixActuelPourOp(op);
     const kg = op.poidsnet || 0;
     const mg = prixOp ? Math.round(kg * (prixOp.graine||0)) : 0;
     const mt = prixOp ? Math.round(kg * (prixOp.transport||0)) : 0;
+    // Montant dû selon le rôle du ticket
+    const montantRole = role === 'transporteur' ? mt : (role === 'producteur' ? mg : mg + mt);
     totalTonnage += kg;
     totalGraine += mg;
     totalTransport += mt;
     if(op.vehicule) vehiculeNom = op.vehicule;
     const cf = [op.chauffeurNom, op.chauffeurPrenom].filter(Boolean).join(' ') || op.chauffeur || '';
     if(cf) chauffeurNom = cf;
+    // Label couleur et montant selon rôle
+    const roleLabel = role === 'transporteur' ? `<span style="color:var(--blue);">${mt.toLocaleString('fr-FR')} FCFA</span> transport` :
+                      role === 'producteur'   ? `<span style="color:var(--gold);font-weight:600;">${mg.toLocaleString('fr-FR')} FCFA</span> graine` :
+                      `<span style="color:var(--gold);font-weight:600;">${mg.toLocaleString('fr-FR')}</span> + <span style="color:var(--blue);">${mt.toLocaleString('fr-FR')}</span> FCFA`;
     return `
       <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:600;color:var(--text);">N° ${op.seq} — ${new Date(op.date).toLocaleDateString('fr-FR')}</div>
-          <div style="font-size:11px;color:var(--text3);">${op.produit} · ${(kg/1000).toFixed(3)} t · <span style="color:var(--gold);font-weight:600;">${mg.toLocaleString('fr-FR')} FCFA</span> graine + <span style="color:var(--blue);">${mt.toLocaleString('fr-FR')} FCFA</span> transport</div>
+          <div style="font-size:11px;color:var(--text3);">${op.produit} · ${(kg/1000).toFixed(3)} t · ${roleLabel}</div>
+          <div style="font-size:11px;font-weight:700;color:${role==='transporteur'?'var(--blue)':'var(--gold)'};">→ Montant à payer : ${montantRole.toLocaleString('fr-FR')} FCFA</div>
           <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">${item.ticketId}</div>
         </div>
         <button onclick="retirerDuPanier(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;flex-shrink:0;">×</button>
@@ -3611,7 +3658,16 @@ function renderPanier() {
   document.getElementById('panier-total-tonnage').textContent = (totalTonnage/1000).toFixed(3) + ' t';
   document.getElementById('panier-total-graine').textContent = totalGraine.toLocaleString('fr-FR') + ' FCFA';
   document.getElementById('panier-total-transport').textContent = totalTransport.toLocaleString('fr-FR') + ' FCFA';
-  document.getElementById('panier-btn-total').textContent = (totalGraine + totalTransport).toLocaleString('fr-FR') + ' FCFA';
+  // Total à payer = somme des montants selon rôle de chaque ticket
+  const totalAPayer = panier.reduce((sum, item) => {
+    const prixOp = getPrixActuelPourOp(item.op);
+    const kg = item.op.poidsnet || 0;
+    if(!prixOp) return sum;
+    if(item.role === 'transporteur') return sum + Math.round(kg * (prixOp.transport||0));
+    if(item.role === 'producteur') return sum + Math.round(kg * (prixOp.graine||0));
+    return sum + Math.round(kg * ((prixOp.graine||0) + (prixOp.transport||0)));
+  }, 0);
+  document.getElementById('panier-btn-total').textContent = totalAPayer.toLocaleString('fr-FR') + ' FCFA';
 }
 
 function retirerDuPanier(idx) {
