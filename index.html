@@ -1135,6 +1135,10 @@
             <select id="rpt-client"><option value="">Tous</option></select>
           </div>
           <div class="field">
+            <label>Transporteur / Chauffeur</label>
+            <select id="rpt-transporteur"><option value="">Tous</option></select>
+          </div>
+          <div class="field">
             <label>Grouper par</label>
             <select id="rpt-group">
               <option value="">Aucun regroupement</option>
@@ -2063,6 +2067,7 @@ async function loadFromDrive() {
   populateSelectsFromRefs();
   loadConfigToForm();
   populateScannerSelects();
+  initRapportPage();
   showToast(`✅ Drive: ${allOperations.length} opérations chargées`, 'success');
 }
 
@@ -2395,6 +2400,7 @@ async function loadFileData() {
     populateSelectsFromRefs();
     loadConfigToForm();
     populateScannerSelects();
+    initRapportPage();
     showToast(`✅ ${allOperations.length} opérations chargées (local)`, 'success');
   } catch(e) { showToast('Erreur lecture: ' + e.message, 'error'); }
 }
@@ -4431,39 +4437,51 @@ function initRapportPage() {
   if(!document.getElementById('rpt-date-from').value) document.getElementById('rpt-date-from').value = firstDay;
   if(!document.getElementById('rpt-date-to').value) document.getElementById('rpt-date-to').value = today;
 
-  // Populate selects
+  // Populate selects — construit depuis refs ET depuis les opérations réelles
   const populateRpt = (id, items) => {
     const el = document.getElementById(id);
     if(!el) return;
-    const cur = el.value;
-    el.innerHTML = '<option value="">Tous</option>' + items.map(v => `<option value="${v}" ${v===cur?'selected':''}>${v}</option>`).join('');
+    const cur = el.value; // conserve la sélection en cours
+    const sorted = [...new Set(items.map(v => (v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+    el.innerHTML = '<option value="">— Tous —</option>' + sorted.map(v => `<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
   };
-  populateRpt('rpt-produit', refs.produits || []);
-  const vehiculesAll = [...new Set([...(refs.vehicules||[]), ...allOperations.map(o=>o.vehicule).filter(Boolean)])].sort();
-  populateRpt('rpt-vehicule', vehiculesAll);
-  const produceursAll = [...new Set([...(refs.fournisseurs||[]), ...allOperations.map(o=>o.fournisseur).filter(Boolean)])].sort();
-  populateRpt('rpt-producteur', produceursAll);
-  const clientsAll = [...new Set([...(refs.clients||[]), ...allOperations.map(o=>o.client).filter(Boolean)])].sort();
-  populateRpt('rpt-client', clientsAll);
+
+  populateRpt('rpt-produit',
+    [...(refs.produits||[]), ...allOperations.map(o=>o.produit)]
+  );
+  populateRpt('rpt-vehicule',
+    [...(refs.vehicules||[]), ...allOperations.map(o=>o.vehicule)]
+  );
+  populateRpt('rpt-producteur',
+    [...(refs.fournisseurs||[]), ...allOperations.map(o=>o.fournisseur)]
+  );
+  populateRpt('rpt-client',
+    [...(refs.clients||[]), ...allOperations.map(o=>o.client)]
+  );
+  populateRpt('rpt-transporteur',
+    [...(refs.transporteurs||[]), ...(refs.chauffeurs||[]).map(c=>typeof c==='string'?c:(c.nom?(c.nom+(c.prenom?' '+c.prenom:'')):'')),...allOperations.map(o=>o.transporteur||o.chauffeur)]
+  );
 }
 
 function getRapportOps() {
-  const from = document.getElementById('rpt-date-from').value;
-  const to = document.getElementById('rpt-date-to').value;
-  const type = document.getElementById('rpt-type').value;
-  const produit = document.getElementById('rpt-produit').value;
-  const vehicule = document.getElementById('rpt-vehicule').value;
-  const producteur = document.getElementById('rpt-producteur').value;
-  const client = document.getElementById('rpt-client').value;
+  const from         = document.getElementById('rpt-date-from').value;
+  const to           = document.getElementById('rpt-date-to').value;
+  const type         = document.getElementById('rpt-type').value;
+  const produit      = document.getElementById('rpt-produit').value;
+  const vehicule     = document.getElementById('rpt-vehicule').value;
+  const producteur   = document.getElementById('rpt-producteur').value;
+  const client       = document.getElementById('rpt-client').value;
+  const transporteur = document.getElementById('rpt-transporteur') ? document.getElementById('rpt-transporteur').value : '';
 
   return allOperations.filter(op => {
     if(from && op.date && op.date.slice(0,10) < from) return false;
-    if(to && op.date && op.date.slice(0,10) > to) return false;
-    if(type && op.opType !== type) return false;
-    if(produit && op.produit !== produit) return false;
-    if(vehicule && op.vehicule !== vehicule) return false;
-    if(producteur && op.fournisseur !== producteur) return false;
-    if(client && op.client !== client) return false;
+    if(to   && op.date && op.date.slice(0,10) > to)   return false;
+    if(type        && op.opType    !== type)       return false;
+    if(produit     && op.produit   !== produit)    return false;
+    if(vehicule    && op.vehicule  !== vehicule)   return false;
+    if(producteur  && op.fournisseur !== producteur) return false;
+    if(client      && op.client    !== client)     return false;
+    if(transporteur && (op.transporteur||op.chauffeur) !== transporteur) return false;
     return true;
   });
 }
