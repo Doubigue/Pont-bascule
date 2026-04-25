@@ -305,6 +305,10 @@
   .net-box .nb-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
   .net-box .nb-val { font-family: 'DM Mono', monospace; font-size: 18px; color: var(--text); margin-top: 2px; }
   .net-box.highlight .nb-val { color: var(--green2); }
+  .net-box .nb-kg { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .net-box .nb-lettres { font-size: 9px; color: var(--text3); font-style: italic; margin-top: 2px; line-height: 1.3; }
+  .net-box.highlight .nb-kg { color: var(--green2); opacity: 0.8; }
+  .net-box.highlight .nb-lettres { color: var(--green2); opacity: 0.7; }
 
   /* === TABLE === */
   .table-wrap {
@@ -623,7 +627,36 @@
 </head>
 <body>
 
-<div id="app">
+<!-- ===== ÉCRAN CONNEXION ===== -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;background-image:radial-gradient(ellipse at 30% 40%,rgba(201,168,76,.07) 0%,transparent 60%);">
+  <div style="font-size:48px;animation:pulse 2s ease-in-out infinite;">🌾</div>
+  <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--gold);">Pont Bascule</div>
+  <div style="font-size:12px;color:var(--text3);margin-top:-8px;">Gestion des pesées</div>
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px 28px;width:320px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);">
+    <div class="field">
+      <label>Rôle</label>
+      <select id="login-role" onchange="onLoginRoleChange()" style="font-size:14px;">
+        <option value="operateur">👷 Opérateur / Opératrice</option>
+        <option value="admin">🛡️ Administrateur</option>
+      </select>
+    </div>
+    <div class="field" id="login-nom-field">
+      <label>Nom d'opérateur</label>
+      <select id="login-nom" style="font-size:14px;">
+        <option value="">— Sélectionner —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-mdp" placeholder="••••••" onkeydown="if(event.key==='Enter')tryLogin()" style="font-size:16px;letter-spacing:4px;text-align:center;">
+    </div>
+    <div id="login-error" style="color:var(--red);font-size:12px;text-align:center;display:none;">❌ Identifiants incorrects</div>
+    <button onclick="tryLogin()" style="background:var(--gold);color:#1a1200;font-weight:700;border:none;border-radius:var(--radius2);padding:12px;cursor:pointer;font-size:14px;text-transform:uppercase;letter-spacing:1px;width:100%;transition:all .2s;" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">Connexion →</button>
+    <div style="font-size:11px;color:var(--text3);text-align:center;">Par défaut : mot de passe <strong style="color:var(--gold);font-family:'DM Mono',monospace;">1234</strong></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
 
   <!-- HEADER -->
   <div id="header">
@@ -631,6 +664,8 @@
       <div class="logo">🌾 Pont<span>Bascule</span></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
+    <div id="current-user-badge" style="display:none;align-items:center;gap:5px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.35);color:var(--gold);font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;">👷 <span id="current-user-name"></span></div>
+    <button onclick="doLogout()" id="btn-logout" style="display:none;background:none;border:1px solid var(--border);color:var(--text3);font-size:11px;padding:5px 10px;border-radius:20px;cursor:pointer;">🚪 Quitter</button>
     <a href="https://Doubigue.github.io/Pont-bascule-admin/" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;text-decoration:none;transition:all .2s;">⚙️ Admin</a>
     <div class="drive-status-badge" id="drive-status-btn" onclick="showDriveAuthOverlay()">
       <div class="drive-dot"></div>
@@ -652,6 +687,7 @@
     <div class="tab" onclick="showPage('stats')" data-page="stats">📊 Statistiques</div>
     <div class="tab" onclick="showPage('referentiels')" data-page="referentiels">🗃️ Référentiels</div>
     <div class="tab" onclick="showPage('export')" data-page="export">📤 Export</div>
+    <div class="tab" onclick="showPage('rapport')" data-page="rapport">📑 Rapport</div>
     <div class="tab" onclick="showPage('config')" data-page="config">⚙️ Config</div>
   </div>
 
@@ -688,7 +724,7 @@
 
         <div class="form-grid">
           <div class="field">
-            <label>Véhicule (immat.)</label>
+            <label>Véhicule (immat.) <button type="button" onclick="quickAdd('vehicule')" style="margin-left:6px;background:rgba(201,168,76,0.2);border:1px solid var(--gold);color:var(--gold);border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;padding:0;line-height:1;">+</button></label>
             <select id="op-vehicule" onchange="onVehiculeChange()">
               <option value="">— Sélectionner —</option>
             </select>
@@ -728,14 +764,14 @@
 
         <div class="form-grid">
           <div class="field">
-            <label>Poids Brut (kg)</label>
+            <label id="label-poids-brut">Poids Brut (kg)</label>
             <div class="input-unit">
-              <input type="number" id="poids-brut" placeholder="Ex: 28500" oninput="calcNet()">
+              <input type="number" id="poids-brut" placeholder="Ex: 8500" oninput="calcNet()">
               <span class="unit-badge">kg</span>
             </div>
           </div>
           <div class="field">
-            <label>Poids Vide (kg)</label>
+            <label id="label-poids-tare">Poids Vide (kg)</label>
             <div class="input-unit">
               <input type="number" id="poids-tare" placeholder="Ex: 8500" oninput="calcNet()">
               <span class="unit-badge">kg</span>
@@ -748,7 +784,7 @@
 
         <div class="form-grid">
           <div class="field">
-            <label>Produit / Graine</label>
+            <label>Produit / Graine <button type="button" onclick="quickAdd('produit')" style="margin-left:6px;background:rgba(201,168,76,0.2);border:1px solid var(--gold);color:var(--gold);border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;padding:0;line-height:1;">+</button></label>
             <select id="op-produit">
               <option value="">— Sélectionner —</option>
             </select>
@@ -778,7 +814,7 @@
 
         <div class="form-grid">
           <div class="field" id="div-fournisseur">
-            <label id="label-acteur1">Fournisseur / Producteur</label>
+            <label id="label-acteur1">Fournisseur / Producteur <button type="button" onclick="quickAdd('fournisseur')" style="margin-left:6px;background:rgba(201,168,76,0.2);border:1px solid var(--gold);color:var(--gold);border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;padding:0;line-height:1;">+</button></label>
             <select id="op-fournisseur">
               <option value="">— Sélectionner —</option>
             </select>
@@ -810,7 +846,7 @@
           <button class="btn btn-primary" onclick="saveOperation()" id="btn-save">
             💾 Enregistrer
           </button>
-          <button class="btn btn-ghost" style="background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold);" onclick="savePendingOp()" title="Enregistrer avec seulement le poids brut — compléter le poids vide plus tard">
+          <button id="btn-pending" class="btn btn-ghost" style="background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold);" onclick="savePendingOp()" title="Enregistrer avec seulement le poids brut — compléter le poids vide plus tard">
             ⏳ Mettre en attente
           </button>
           <button class="btn btn-ghost" onclick="resetForm()">🔄 Réinitialiser</button>
@@ -1056,6 +1092,78 @@
         </div>
       </div>
 
+    </div>
+
+
+    <!-- ===== PAGE RAPPORT ===== -->
+    <div class="page" id="page-rapport">
+      <div class="card">
+        <div class="card-title">📑 Générer un Rapport</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Du</label>
+            <input type="date" id="rpt-date-from">
+          </div>
+          <div class="field">
+            <label>Au</label>
+            <input type="date" id="rpt-date-to">
+          </div>
+          <div class="field">
+            <label>Type d'opération</label>
+            <select id="rpt-type">
+              <option value="">Toutes</option>
+              <option value="entree">📥 Entrées uniquement</option>
+              <option value="sortie">📤 Sorties uniquement</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Produit</label>
+            <select id="rpt-produit"><option value="">Tous</option></select>
+          </div>
+          <div class="field">
+            <label>Véhicule / Chauffeur</label>
+            <select id="rpt-vehicule"><option value="">Tous</option></select>
+          </div>
+          <div class="field">
+            <label>Producteur / Fournisseur</label>
+            <select id="rpt-producteur"><option value="">Tous</option></select>
+          </div>
+          <div class="field">
+            <label>Client / Acheteur</label>
+            <select id="rpt-client"><option value="">Tous</option></select>
+          </div>
+          <div class="field">
+            <label>Grouper par</label>
+            <select id="rpt-group">
+              <option value="">Aucun regroupement</option>
+              <option value="produit">Produit</option>
+              <option value="vehicule">Véhicule</option>
+              <option value="fournisseur">Producteur</option>
+              <option value="client">Acheteur</option>
+              <option value="date">Jour</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="genererRapport('apercu')">👁️ Aperçu</button>
+          <button class="btn btn-success" onclick="genererRapport('pdf')">📄 PDF (impression)</button>
+          <button class="btn btn-blue" onclick="genererRapport('csv')">📊 Excel / CSV</button>
+        </div>
+      </div>
+
+      <div id="rapport-apercu" style="display:none;">
+        <div class="card">
+          <div class="card-title">📊 Résultats <span id="rpt-count" style="font-size:13px;font-weight:400;color:var(--text3);"></span></div>
+          <div id="rpt-summary" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+          <div id="rpt-group-sections"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>N°</th><th>Date</th><th>Type</th><th>Produit</th><th>Vide (kg)</th><th>Brut (kg)</th><th>Net (kg)</th><th>Format</th><th>Véhicule</th><th>Producteur</th><th>Acheteur</th></tr></thead>
+              <tbody id="rpt-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== PAGE CONFIG ===== -->
@@ -1449,8 +1557,14 @@
       <button class="btn btn-sm btn-ghost" id="tab-btn-producteur" onclick="showTicketTab('producteur')" style="flex:1;font-size:11px;">🌾 Producteur</button>
       <button class="btn btn-sm btn-ghost" id="tab-btn-acheteur" onclick="showTicketTab('acheteur')" style="flex:1;font-size:11px;">👤 Acheteur</button>
     </div>
-    <div id="ticket-content" style="background:#fff;color:#000;border-radius:var(--radius);padding:16px;font-family:'DM Mono',monospace;font-size:11px;line-height:1.7;border:2px dashed var(--border2);white-space:pre-wrap;max-height:55vh;overflow-y:auto;"></div>
-    <div id="ticket-qr" style="text-align:center;margin-top:10px;"></div>
+    <div style="background:#fff;color:#000;border-radius:var(--radius);border:2px dashed var(--border2);max-height:55vh;overflow-y:auto;">
+      <div id="ticket-content-before" style="padding:12px 12px 0 12px;font-family:'DM Mono',monospace;font-size:9.5px;line-height:1.5;white-space:pre-wrap;"></div>
+      <div style="display:flex;align-items:flex-start;gap:2px;padding:0 12px;">
+        <div id="ticket-content-poids" style="flex:1;font-family:'DM Mono',monospace;font-size:9.5px;line-height:1.5;white-space:pre-wrap;"></div>
+        <div id="ticket-qr" style="flex-shrink:0;padding-top:2px;margin-left:-8px;"></div>
+      </div>
+      <div id="ticket-content-after" style="padding:0 12px 12px 12px;font-family:'DM Mono',monospace;font-size:9.5px;line-height:1.5;white-space:pre-wrap;"></div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="printCurrentTicket()">🖨️ Imprimer ce ticket</button>
       <button class="btn btn-success" onclick="printAllTickets()">🖨️ Imprimer les 3</button>
@@ -1461,16 +1575,91 @@
 
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="detail-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:540px;">
     <div class="modal-title">
       📋 Détail opération
       <span class="modal-close" onclick="closeModal('detail-modal')">✕</span>
     </div>
     <div id="detail-content"></div>
+    <!-- Aperçu ticket inline -->
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer;font-size:12px;color:var(--gold);padding:6px 0;">🎫 Voir aperçu ticket</summary>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="showDetailTicketTab('transporteur')" id="dtab-trp" style="background:var(--gold);color:#1a1a0a;">🚚 Transporteur</button>
+        <button class="btn btn-ghost btn-sm" onclick="showDetailTicketTab('producteur')" id="dtab-prd">🌾 Producteur</button>
+        <button class="btn btn-ghost btn-sm" onclick="showDetailTicketTab('acheteur')" id="dtab-ach">👤 Acheteur</button>
+      </div>
+      <div id="detail-ticket-preview" style="margin-top:8px;background:#fff;color:#000;border-radius:var(--radius2);border:2px dashed var(--border2);max-height:300px;overflow-y:auto;padding:10px;font-family:'DM Mono',monospace;font-size:9px;white-space:pre-wrap;line-height:1.5;"></div>
+    </details>
     <div class="btn-row">
-      <button class="btn btn-ghost btn-sm" onclick="printDetailTicket()">🖨️ Tickets (3)</button>
-      <button class="btn btn-danger btn-sm" id="btn-delete-op" onclick="deleteCurrentOp()">🗑️ Supprimer</button>
+      <button class="btn btn-primary btn-sm" onclick="printDetailTicket()">🖨️ Imprimer tickets</button>
+      <button class="btn btn-ghost btn-sm" onclick="openEditOp()">✏️ Modifier</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-op" onclick="askDeleteOp()">🗑️ Supprimer</button>
       <button class="btn btn-ghost" onclick="closeModal('detail-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMATION SUPPRESSION -->
+<div class="modal-overlay" id="delete-confirm-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-title">🗑️ Supprimer l'opération ?
+      <span class="modal-close" onclick="closeModal('delete-confirm-modal')">✕</span>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Cette action est irréversible. Entrez le mot de passe pour confirmer.</div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="delete-mdp-input" placeholder="••••••" onkeydown="if(event.key==='Enter')confirmDeleteOp()">
+    </div>
+    <div id="delete-mdp-error" style="color:var(--red);font-size:12px;margin-top:6px;display:none;">❌ Mot de passe incorrect</div>
+    <div class="btn-row">
+      <button class="btn btn-danger" onclick="confirmDeleteOp()">🗑️ Supprimer définitivement</button>
+      <button class="btn btn-ghost" onclick="closeModal('delete-confirm-modal')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL MODIFICATION OPÉRATION -->
+<div class="modal-overlay" id="edit-op-modal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-title">✏️ Modifier l'opération <span id="edit-op-seq-title"></span>
+      <span class="modal-close" onclick="closeModal('edit-op-modal')">✕</span>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div class="field"><label>Date</label><input type="datetime-local" id="edit-date"></div>
+      <div class="field"><label>Produit</label><input type="text" id="edit-produit"></div>
+      <div class="field"><label>Poids Brut (kg)</label><input type="number" id="edit-poidsbrut" oninput="editCalcNet()"></div>
+      <div class="field"><label>Poids Vide (kg)</label><input type="number" id="edit-poidstare" oninput="editCalcNet()"></div>
+      <div class="field full"><label>Poids Net calculé</label><div id="edit-poidsnet-display" style="padding:9px 12px;background:rgba(76,175,80,0.1);border:1px solid var(--green);border-radius:var(--radius2);font-family:'DM Mono',monospace;font-size:14px;color:var(--green2);">—</div></div>
+      <div class="field"><label>Véhicule</label><input type="text" id="edit-vehicule"></div>
+      <div class="field"><label>Producteur</label><input type="text" id="edit-fournisseur"></div>
+      <div class="field"><label>Client / Acheteur</label><input type="text" id="edit-client"></div>
+      <div class="field"><label>N° BL</label><input type="text" id="edit-bdc"></div>
+      <div class="field"><label>Humidité (%)</label><input type="number" id="edit-humidite" step="0.1"></div>
+      <div class="field full"><label>Observations</label><textarea id="edit-obs" style="min-height:60px;"></textarea></div>
+    </div>
+    <div id="edit-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="saveEditOp()">💾 Sauvegarder</button>
+      <button class="btn btn-ghost" onclick="closeModal('edit-op-modal')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QUICK ADD -->
+<div class="modal-overlay" id="quick-add-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-title" id="quick-add-title">➕ Ajouter
+      <span class="modal-close" onclick="closeModal('quick-add-modal')">✕</span>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label id="quick-add-label">Valeur</label>
+      <input type="text" id="quick-add-input" placeholder="" onkeydown="if(event.key==='Enter')confirmQuickAdd()">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="confirmQuickAdd()">✅ Ajouter</button>
+      <button class="btn btn-ghost" onclick="closeModal('quick-add-modal')">Annuler</button>
     </div>
   </div>
 </div>
@@ -1537,6 +1726,69 @@ const CONFIG_KEY = '__config__';
 // ================================================================
 // INIT
 // ================================================================
+
+// ================================================================
+// CONNEXION — LOGIN
+// ================================================================
+let currentUser = null; // { nom, role }
+
+function onLoginRoleChange() {
+  const role = document.getElementById('login-role').value;
+  document.getElementById('login-nom-field').style.display = role === 'operateur' ? 'flex' : 'none';
+}
+
+function populateLoginNoms() {
+  const sel = document.getElementById('login-nom');
+  const ops = refs.operateurs || [];
+  sel.innerHTML = '<option value="">— Sélectionner —</option>' + ops.map(o => `<option value="${o}">${o}</option>`).join('');
+}
+
+function tryLogin() {
+  const role = document.getElementById('login-role').value;
+  const mdp = document.getElementById('login-mdp').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  const mdpOperateur = config.mdpOperateur || '1234';
+  const mdpAdmin = config.mdpAdmin || '1234';
+
+  if (role === 'admin') {
+    if (mdp !== mdpAdmin) { errEl.style.display = 'block'; document.getElementById('login-mdp').value = ''; return; }
+    currentUser = { nom: 'Administrateur', role: 'admin' };
+  } else {
+    const nom = document.getElementById('login-nom').value;
+    if (!nom) { errEl.textContent = '❌ Sélectionnez votre nom'; errEl.style.display = 'block'; return; }
+    if (mdp !== mdpOperateur) { errEl.textContent = '❌ Mot de passe incorrect'; errEl.style.display = 'block'; document.getElementById('login-mdp').value = ''; return; }
+    currentUser = { nom, role: 'operateur' };
+    // Enregistrer l'opérateur actif
+    config.operateurActif = nom;
+  }
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  // Afficher badge utilisateur
+  const badge = document.getElementById('current-user-badge');
+  const nameEl = document.getElementById('current-user-name');
+  badge.style.display = 'inline-flex';
+  nameEl.textContent = currentUser.nom;
+  document.getElementById('btn-logout').style.display = 'inline-flex';
+  document.getElementById('login-mdp').value = '';
+  showToast('✅ Connecté : ' + currentUser.nom, 'success');
+}
+
+function doLogout() {
+  if (!confirm('Se déconnecter ?')) return;
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('current-user-badge').style.display = 'none';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('login-mdp').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  // Repopuler les noms
+  populateLoginNoms();
+}
+
 window.onload = async () => {
   setDefaultDate();
   loadLocalConfig();
@@ -1954,7 +2206,7 @@ function renderPendingOps() {
         <div style="font-size:10px;color:var(--text3);">${new Date(op.date).toLocaleString('fr-FR')}</div>
       </div>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-primary btn-sm" onclick="completePending(${idx})">⚖️ Saisir Poids Vide</button>
+        <button class="btn btn-primary btn-sm" onclick="completePending(${idx})">⚖️ Saisir ${op.opType==='sortie'?'Poids Brut':'Poids Vide'}</button>
         <button class="btn btn-danger btn-sm" onclick="cancelPending(${idx})">✕</button>
       </div>
     </div>
@@ -1964,7 +2216,7 @@ function renderPendingOps() {
 function savePendingOp() {
   if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const brut = parseFloat(document.getElementById('poids-brut').value);
-  if(!brut || brut <= 0) { showToast('Saisir le poids brut (1ère pesée)', 'error'); return; }
+  if(!brut || brut <= 0) { const t=document.getElementById('op-type').value; showToast(t==='sortie'?'Saisir le poids vide (1er champ)':'Saisir le poids brut (1ère pesée)', 'error'); return; }
   const produit = document.getElementById('op-produit').value;
   if(!produit) { showToast('Sélectionner un produit', 'error'); return; }
 
@@ -2032,12 +2284,13 @@ function completePending(idx) {
   // Marquer que c'est une complétion
   document.getElementById('btn-save').dataset.pendingIdx = idx;
   document.getElementById('btn-save').dataset.pendingId = op.tmpId;
-  document.getElementById('btn-save').innerHTML = '✅ Compléter le Poids Vide';
+  const _cType = op.opType || 'entree';
+  document.getElementById('btn-save').innerHTML = _cType === 'sortie' ? '✅ Compléter le Poids Brut' : '✅ Compléter le Poids Vide';
   document.getElementById('btn-save').classList.add('btn-success');
   document.getElementById('btn-save').classList.remove('btn-primary');
   showPage('pesee');
   document.getElementById('content').scrollTo(0, 0);
-  showToast(`📋 Complétez le Poids Vide pour l'opération N°${op.tmpSeq}`, '');
+  showToast(`📋 Complétez le ${op.opType==='sortie'?'Poids Brut':'Poids Vide'} pour l'opération N°${op.tmpSeq}`, '');
 }
 
 function cancelPending(idx) {
@@ -2082,8 +2335,9 @@ function showPage(name) {
   if(name === 'export') populateExportSelects();
   if(name === 'paiements') loadPaiements();
   if(name === 'scanner') initScanner();
-  else if(qrScanner) stopQRScanner(); // arrêter camera si on quitte
+  else if(qrScanner) stopQRScanner();
   if(name === 'config') { loadConfigToForm(); renderHistoriquePrix(); }
+  if(name === 'rapport') initRapportPage();
 }
 
 // ================================================================
@@ -2177,19 +2431,176 @@ function fallbackAlert() {
 // ================================================================
 // FORM - PESÉE
 // ================================================================
+// ================================================================
+// CONVERSION POIDS EN LETTRES (Français)
+// ================================================================
+const _UNITS = ['','un','deux','trois','quatre','cinq','six','sept','huit','neuf',
+  'dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+const _TENS = ['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
+
+function _centaines(n) {
+  if (n === 0) return '';
+  if (n < 20) return _UNITS[n];
+  const d = Math.floor(n / 10), u = n % 10;
+  if (d === 7) { return 'soixante-' + _UNITS[10 + u]; }
+  if (d === 8) { return u === 0 ? 'quatre-vingts' : 'quatre-vingt-' + _UNITS[u]; }
+  if (d === 9) { return 'quatre-vingt-' + _UNITS[10 + u]; }
+  let s = _TENS[d];
+  if (u === 1 && d !== 8) s += '-et-un';
+  else if (u > 0) s += '-' + _UNITS[u];
+  return s;
+}
+
+function _nombre(n) {
+  if (n === 0) return 'zéro';
+  if (n < 0) return 'moins ' + _nombre(-n);
+  let s = '';
+  if (n >= 1000) {
+    const m = Math.floor(n / 1000);
+    s += (m === 1 ? 'mille' : _nombre(m) + ' mille');
+    n %= 1000;
+    if (n > 0) s += ' ';
+  }
+  if (n >= 100) {
+    const c = Math.floor(n / 100);
+    s += (c === 1 ? 'cent' : _UNITS[c] + ' cent' + (n % 100 === 0 ? 's' : ''));
+    n %= 100;
+    if (n > 0) s += ' ';
+  }
+  if (n > 0) s += _centaines(n);
+  return s.trim();
+}
+
+function poidsEnLettres(v) {
+  // v en kg entier
+  if (!v || v <= 0) return '';
+  const t = Math.floor(v / 1000);
+  const k = v % 1000;
+  let parts = [];
+  if (t > 0) parts.push(_nombre(t) + ' tonne' + (t > 1 ? 's' : ''));
+  if (k > 0) parts.push(_nombre(k) + ' kilo' + (k > 1 ? 's' : ''));
+  // Capitaliser 1ere lettre
+  const s = parts.join(' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function fmtPoidsDisplay(v) {
+  // Format: X T YY Kg (ex: 2022 → 2 T 22 Kg, 28500 → 28 T 500 Kg)
+  if (v <= 0) return '—';
+  const tonnes = Math.floor(v / 1000);
+  const kg = v % 1000;
+  if (tonnes === 0) return kg + ' Kg';
+  return tonnes + ' T ' + kg + ' Kg';
+}
+
+function setBoxContent(elId, v) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!v || v <= 0) { el.innerHTML = '—'; return; }
+  const tval = fmtPoidsDisplay(v);
+  const kgVal = v.toLocaleString('fr-FR') + ' kg';
+  const lettres = poidsEnLettres(v);
+  el.innerHTML = tval +
+    '<div class="nb-kg">' + kgVal + '</div>' +
+    '<div class="nb-lettres">' + lettres + '</div>';
+}
+
 function calcNet() {
-  const brut = parseFloat(document.getElementById('poids-brut').value) || 0;
-  const tare = parseFloat(document.getElementById('poids-tare').value) || 0;
-  const net = brut - tare;
-  document.getElementById('disp-brut').textContent = brut > 0 ? fmtKg(brut) : '—';
-  document.getElementById('disp-tare').textContent = tare > 0 ? fmtKg(tare) : '—';
-  document.getElementById('disp-net').textContent = net > 0 ? fmtKg(net) : '—';
+  const opType = document.getElementById('op-type').value;
+  const val1 = parseFloat(document.getElementById('poids-brut').value) || 0;
+  const val2 = parseFloat(document.getElementById('poids-tare').value) || 0;
+
+  let poidsBrut, poidsVide, poidsNet;
+  if (opType === 'sortie') {
+    poidsVide = val1;
+    poidsBrut = val2;
+    poidsNet = poidsBrut - poidsVide;
+  } else {
+    poidsBrut = val1;
+    poidsVide = val2;
+    poidsNet = poidsBrut - poidsVide;
+  }
+
+  setBoxContent('disp-brut', poidsBrut);
+  setBoxContent('disp-tare', poidsVide);
+  setBoxContent('disp-net', poidsNet > 0 ? poidsNet : 0);
+}
+
+
+// ================================================================
+// AJOUT RAPIDE (bouton + dans le formulaire)
+// ================================================================
+let _quickAddKey = '';
+
+const QUICKADD_CONFIG = {
+  vehicule:   { title: '➕ Nouveau Véhicule', label: 'Immatriculation', placeholder: 'AB-123-CD', refKey: 'vehicules', selectId: 'op-vehicule' },
+  produit:    { title: '➕ Nouveau Produit',  label: 'Nom du produit',  placeholder: 'Maïs, Soja...', refKey: 'produits', selectId: 'op-produit' },
+  fournisseur:{ title: '➕ Nouveau Producteur', label: 'Nom du producteur', placeholder: 'Nom...', refKey: 'fournisseurs', selectId: 'op-fournisseur' },
+};
+
+function quickAdd(type) {
+  const cfg = QUICKADD_CONFIG[type];
+  if(!cfg) return;
+  _quickAddKey = type;
+  document.getElementById('quick-add-title').textContent = cfg.title;
+  document.getElementById('quick-add-label').textContent = cfg.label;
+  const inp = document.getElementById('quick-add-input');
+  inp.placeholder = cfg.placeholder;
+  inp.value = '';
+  openModal('quick-add-modal');
+  setTimeout(() => inp.focus(), 100);
+}
+
+async function confirmQuickAdd() {
+  const cfg = QUICKADD_CONFIG[_quickAddKey];
+  if(!cfg) return;
+  const val = document.getElementById('quick-add-input').value.trim();
+  if(!val) { showToast('Saisir une valeur', 'error'); return; }
+  if(!refs[cfg.refKey]) refs[cfg.refKey] = [];
+  if(refs[cfg.refKey].includes(val)) { showToast('Déjà présent !', 'error'); return; }
+  refs[cfg.refKey].push(val);
+  refs[cfg.refKey].sort();
+  populateSelectsFromRefs();
+  // Sélectionner la nouvelle valeur
+  const sel = document.getElementById(cfg.selectId);
+  if(sel) sel.value = val;
+  closeModal('quick-add-modal');
+  await appendToFile({type:'refs', data: refs, date: new Date().toISOString()});
+  showToast('✅ ' + val + ' ajouté !', 'success');
 }
 
 function onTypeChange() {
   const type = document.getElementById('op-type').value;
   const lbl = document.getElementById('label-acteur1');
   lbl.textContent = type === 'entree' ? 'Fournisseur / Producteur' : 'Origine / Expéditeur';
+
+  const lblBrut = document.getElementById('label-poids-brut');
+  const lblTare = document.getElementById('label-poids-tare');
+  const pendingBtn = document.getElementById('btn-pending');
+  const grid = document.querySelector('.net-weight-grid');
+
+  if (type === 'sortie') {
+    if(lblBrut) lblBrut.textContent = 'Poids Vide (kg)';
+    if(lblTare) lblTare.textContent = 'Poids Brut (kg)';
+    if(grid) {
+      grid.innerHTML =
+        '<div class="net-box"><div class="nb-label">Poids Vide</div><div class="nb-val" id="disp-tare">—</div></div>' +
+        '<div class="net-box"><div class="nb-label">Poids Brut</div><div class="nb-val" id="disp-brut">—</div></div>' +
+        '<div class="net-box highlight"><div class="nb-label">⚡ Poids Net</div><div class="nb-val" id="disp-net">—</div></div>';
+    }
+    if(pendingBtn) pendingBtn.title = 'Enregistrer avec seulement le poids vide — compléter le poids brut plus tard';
+  } else {
+    if(lblBrut) lblBrut.textContent = 'Poids Brut (kg)';
+    if(lblTare) lblTare.textContent = 'Poids Vide (kg)';
+    if(grid) {
+      grid.innerHTML =
+        '<div class="net-box"><div class="nb-label">Poids Brut</div><div class="nb-val" id="disp-brut">—</div></div>' +
+        '<div class="net-box"><div class="nb-label">Poids Vide</div><div class="nb-val" id="disp-tare">—</div></div>' +
+        '<div class="net-box highlight"><div class="nb-label">⚡ Poids Net</div><div class="nb-val" id="disp-net">—</div></div>';
+    }
+    if(pendingBtn) pendingBtn.title = 'Enregistrer avec seulement le poids brut — compléter le poids vide plus tard';
+  }
+  calcNet();
 }
 
 function fmtKg(v) {
@@ -2201,9 +2612,13 @@ async function saveOperation() {
   if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
   const brut = parseFloat(document.getElementById('poids-brut').value);
   const tare = parseFloat(document.getElementById('poids-tare').value);
-  if(!brut) { showToast('Saisir le poids brut', 'error'); return; }
-  if(!tare) { showToast('Saisir le poids vide (véhicule vide). Si pas encore disponible, utilisez "⏳ Mettre en attente"', 'error'); return; }
-  if(brut <= tare) { showToast('Le poids brut doit être > tare', 'error'); return; }
+  const opType = document.getElementById('op-type').value;
+  if(!brut) { showToast(opType === 'sortie' ? 'Saisir le poids vide (1er champ)' : 'Saisir le poids brut', 'error'); return; }
+  if(!tare) { showToast(opType === 'sortie' ? 'Saisir le poids brut (2ème champ)' : 'Saisir le poids vide (véhicule vide). Si pas encore disponible, utilisez "⏳ Mettre en attente"', 'error'); return; }
+  // Pour sortie : champ brut = 1ère pesée (vide), champ tare = 2ème pesée (chargé)
+  // On réaffecte : poidsbrut = max, poidstare = min
+  const poidsReel = opType === 'sortie' ? { brut: tare, tare: brut } : { brut, tare };
+  if(poidsReel.brut <= poidsReel.tare) { showToast('Le poids chargé doit être > poids vide', 'error'); return; }
   const produit = document.getElementById('op-produit').value;
   if(!produit) { showToast('Sélectionner un produit', 'error'); return; }
 
@@ -2226,9 +2641,9 @@ async function saveOperation() {
     date: document.getElementById('op-date').value,
     produit,
     campagne: document.getElementById('op-campagne').value,
-    poidsbrut: brut,
-    poidstare: tare,
-    poidsnet: brut - tare,
+    poidsbrut: poidsReel.brut,
+    poidstare: poidsReel.tare,
+    poidsnet: poidsReel.brut - poidsReel.tare,
     humidite: parseFloat(document.getElementById('op-humidite').value) || null,
     impuretes: parseFloat(document.getElementById('op-impuretes').value) || null,
     fournisseur: document.getElementById('op-fournisseur').value,
@@ -2286,9 +2701,9 @@ function resetForm() {
   document.getElementById('op-bdc').value = '';
   document.getElementById('op-obs').value = '';
   document.getElementById('op-campagne').value = '';
-  document.getElementById('disp-brut').textContent = '—';
-  document.getElementById('disp-tare').textContent = '—';
-  document.getElementById('disp-net').textContent = '—';
+  document.getElementById('disp-brut').innerHTML = '—';
+  document.getElementById('disp-tare').innerHTML = '—';
+  document.getElementById('disp-net').innerHTML = '—';
   resetPendingMode();
   setDefaultDate();
 }
@@ -2355,10 +2770,11 @@ Campagne     : ${op.campagne || '—'}
 Humidité     : ${op.humidite != null ? op.humidite + ' %' : '—'}
 Impuretés    : ${op.impuretes != null ? op.impuretes + ' %' : '—'}
 ${sep}
-Poids Brut   : ${(op.poidsbrut||0).toLocaleString('fr-FR')} kg
-Poids Vide   : ${(op.poidstare||0).toLocaleString('fr-FR')} kg
+Poids Brut   : ${(op.poidsbrut||0).toLocaleString('fr-FR')} kg  (${fmtPoidsDisplay(op.poidsbrut||0)})
+Poids Vide   : ${(op.poidstare||0).toLocaleString('fr-FR')} kg  (${fmtPoidsDisplay(op.poidstare||0)})
 POIDS NET    : ${(op.poidsnet||0).toLocaleString('fr-FR')} kg
-             = ${((op.poidsnet||0)/1000).toFixed(3)} T
+             = ${fmtPoidsDisplay(op.poidsnet||0)}
+             * ${poidsEnLettres(op.poidsnet||0)}
 ${sep}
 Véhicule     : ${op.vehicule || '—'}
 Chauffeur    : ${chauffeurFull}${chauffeurLoc}
@@ -2394,7 +2810,20 @@ function showTicketTab(role) {
     }
   });
   if(currentTicketOp) {
-    document.getElementById('ticket-content').textContent = buildTicketText(currentTicketOp, role);
+    const text = buildTicketText(currentTicketOp, role);
+    // Split around the poids section
+    const poidsStartIdx = text.search(/^Poids Brut/m);
+    let beforePoids = text, poidsBlock = '', afterPoids = '';
+    if(poidsStartIdx !== -1) {
+      beforePoids = text.substring(0, poidsStartIdx);
+      const remaining = text.substring(poidsStartIdx);
+      const sepIdx = remaining.search(/\n[─\-]{3,}/);
+      if(sepIdx !== -1) { poidsBlock = remaining.substring(0, sepIdx); afterPoids = remaining.substring(sepIdx); }
+      else { poidsBlock = remaining; }
+    }
+    document.getElementById('ticket-content-before').textContent = beforePoids;
+    document.getElementById('ticket-content-poids').textContent = poidsBlock;
+    document.getElementById('ticket-content-after').textContent = afterPoids;
     renderTicketQR(ticketId(role, currentTicketOp));
   }
 }
@@ -2465,14 +2894,35 @@ function printCurrentTicket() {
   const text = buildTicketText(currentTicketOp, role);
   const tId  = ticketId(role, currentTicketOp);
   const w = window.open('', '_blank');
-  // Generate QR as data URL using canvas if QRCode available
-  let qrHtml = `<div style="font-size:10px;font-family:monospace;">[QR: ${tId}]</div>`;
+
+  // Split text around poids section to place QR inline
+  const poidsStartIdx = text.search(/^Poids Brut/m);
+  let beforePoids = text, poidsBlock = '', afterPoids = '';
+  if(poidsStartIdx !== -1) {
+    beforePoids = text.substring(0, poidsStartIdx);
+    const remaining = text.substring(poidsStartIdx);
+    const sepIdx = remaining.search(/\n[─\-]{3,}/);
+    if(sepIdx !== -1) { poidsBlock = remaining.substring(0, sepIdx); afterPoids = remaining.substring(sepIdx); }
+    else { poidsBlock = remaining; }
+  }
+
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-    <style>body{font-family:monospace;font-size:12px;margin:20px;} @media print{body{margin:8px;}}</style>
+    <style>
+      body{font-family:monospace;font-size:12px;margin:20px;}
+      pre{white-space:pre-wrap;margin:0;}
+      .poids-qr-row{display:flex;flex-direction:row;align-items:flex-start;gap:8px;}
+      .poids-pre{flex:1;min-width:0;}
+      .qr-inline{flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-top:2px;}
+      @media print{body{margin:8px;}}
+    </style>
   </head><body>
-    <pre style="white-space:pre-wrap;">${text}</pre>
-    <div id="qr" style="text-align:center;margin-top:8px;"></div>
+    <pre>${beforePoids}</pre>
+    <div class="poids-qr-row">
+      <pre class="poids-pre">${poidsBlock}</pre>
+      <div id="qr" class="qr-inline"></div>
+    </div>
+    <pre>${afterPoids}</pre>
     <script>
       if(typeof QRCode !== 'undefined'){
         new QRCode(document.getElementById('qr'), {text:'${tId}',width:80,height:80});
@@ -2488,25 +2938,146 @@ function printAllTickets() {
   const op = currentTicketOp;
   const roles = ['transporteur','producteur','acheteur'];
   const w = window.open('', '_blank');
-  const pages = roles.map(role => {
+
+  const tickets = roles.map(role => {
     const text = buildTicketText(op, role);
     const tId  = ticketId(role, op);
-    return `<div class="page"><pre style="white-space:pre-wrap;">${text}</pre>
-      <div id="qr-${role}" style="text-align:center;margin-top:6px;"></div>
-      <script>if(typeof QRCode!=='undefined') new QRCode(document.getElementById('qr-${role}'),{text:'${tId}',width:80,height:80});<\/script>
-    </div>`;
-  }).join('<div class="pb"></div>');
+    const label = role === 'transporteur' ? '🚚 TRANSPORTEUR' : role === 'producteur' ? '🌾 PRODUCTEUR' : '👤 ACHETEUR';
+
+    // Split the ticket text: before poids section and after
+    const poidsMarker = /^Poids Brut/m;
+    const afterPoidsMarker = /^\n?[─\-]{3,}/m;
+    const poidsStartIdx = text.search(poidsMarker);
+    let beforePoids = '', poidsBlock = '', afterPoids = '';
+    if(poidsStartIdx !== -1) {
+      beforePoids = text.substring(0, poidsStartIdx);
+      const remaining = text.substring(poidsStartIdx);
+      // Find the separator line after poids section
+      const sepIdx = remaining.search(/\n[─\-]{3,}/);
+      if(sepIdx !== -1) {
+        poidsBlock = remaining.substring(0, sepIdx);
+        afterPoids = remaining.substring(sepIdx);
+      } else {
+        poidsBlock = remaining;
+      }
+    } else {
+      beforePoids = text;
+    }
+
+    return `
+      <div class="ticket">
+        <div class="ticket-label">${label}</div>
+        <pre class="ticket-pre">${beforePoids}</pre>
+        <div class="poids-qr-row">
+          <pre class="ticket-pre poids-pre">${poidsBlock}</pre>
+          <div id="qr-${role}" class="qr-inline"></div>
+          <script>if(typeof QRCode!=='undefined') new QRCode(document.getElementById('qr-${role}'),{text:'${tId}',width:68,height:68,colorDark:'#000',colorLight:'#fff'});<\/script>
+        </div>
+        <pre class="ticket-pre">${afterPoids}</pre>
+      </div>`;
+  }).join('<div class="cut-v">✂</div>');
+
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <style>
-      body{font-family:monospace;font-size:11px;margin:0;}
-      .page{padding:14px;page-break-after:always;}
-      .page:last-child{page-break-after:auto;}
-      .pb{page-break-after:always;}
-      @media print{.pb{display:none;}}
+      @page { size: A4 landscape; margin: 8mm; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Courier New', monospace; font-size: 9.5px; background: #fff; }
+
+      /* Wrapper 3 tickets côte à côte */
+      .sheet {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        width: 100%;
+        height: 100%;
+        border: 1px solid #ccc;
+      }
+
+      /* Séparateur vertical pointillé avec ciseaux */
+      .cut-v {
+        flex-shrink: 0;
+        width: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 6px;
+        border-left: 1px dashed #999;
+        border-right: 1px dashed #999;
+        font-size: 12px;
+        color: #999;
+        writing-mode: vertical-lr;
+        letter-spacing: 20px;
+        background: #fafafa;
+      }
+
+      /* Chaque ticket */
+      .ticket {
+        flex: 1;
+        padding: 8px 6px 6px 6px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: none;
+      }
+
+      .ticket-label {
+        font-size: 9px;
+        font-weight: bold;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 4px;
+        margin-bottom: 6px;
+        color: #333;
+      }
+
+      .ticket-pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: 'Courier New', monospace;
+        font-size: 8.5px;
+        line-height: 1.45;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .qr-box {
+        text-align: center;
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      /* QR inline avec la section poids */
+      .poids-qr-row {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 4px;
+      }
+      .poids-pre {
+        flex: 1;
+        min-width: 0;
+      }
+      .qr-inline {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: 2px;
+        margin-left: -5mm;
+      }
+
+      @media print {
+        body { margin: 0; }
+        .sheet { border: none; }
+      }
     </style>
-  </head><body>${pages}
-    <script>setTimeout(()=>window.print(), 800);<\/script>
+  </head><body>
+    <div class="sheet">${tickets}</div>
+    <script>setTimeout(()=>window.print(), 900);<\/script>
   </body></html>`);
   w.document.close();
 }
@@ -2576,9 +3147,9 @@ function showDetail(id) {
   const chauffeurFull = [op.chauffeurNom, op.chauffeurPrenom].filter(Boolean).join(' ') || op.chauffeur || '—';
   document.getElementById('detail-content').innerHTML = `
     <div class="net-weight-grid" style="margin-bottom:12px;">
-      <div class="net-box"><div class="nb-label">Poids Brut</div><div class="nb-val">${op.poidsbrut.toLocaleString('fr-FR')} kg</div></div>
-      <div class="net-box"><div class="nb-label">Poids Vide</div><div class="nb-val">${op.poidstare.toLocaleString('fr-FR')} kg</div></div>
-      <div class="net-box highlight"><div class="nb-label">Poids Net</div><div class="nb-val">${op.poidsnet.toLocaleString('fr-FR')} kg</div></div>
+      <div class="net-box"><div class="nb-label">Poids Brut</div><div class="nb-val">${fmtPoidsDisplay(op.poidsbrut||0)}<div class="nb-kg">${(op.poidsbrut||0).toLocaleString('fr-FR')} kg</div></div></div>
+      <div class="net-box"><div class="nb-label">Poids Vide</div><div class="nb-val">${fmtPoidsDisplay(op.poidstare||0)}<div class="nb-kg">${(op.poidstare||0).toLocaleString('fr-FR')} kg</div></div></div>
+      <div class="net-box highlight"><div class="nb-label">Poids Net</div><div class="nb-val">${fmtPoidsDisplay(op.poidsnet||0)}<div class="nb-kg">${(op.poidsnet||0).toLocaleString('fr-FR')} kg</div><div class="nb-lettres">${poidsEnLettres(op.poidsnet||0)}</div></div></div>
     </div>
     <div class="info-row"><span class="ir-key">N° Séq.</span><span class="ir-val">${op.seq}</span></div>
     <div class="info-row"><span class="ir-key">Type</span><span class="ir-val"><span class="badge badge-${op.opType}">${op.opType}</span></span></div>
@@ -2595,12 +3166,99 @@ function showDetail(id) {
     <div class="info-row"><span class="ir-key">Observations</span><span class="ir-val" style="max-width:200px;text-align:right;">${op.obs||'—'}</span></div>
   `;
   document.getElementById('btn-delete-op').dataset.id = id;
+  showDetailTicketTab('transporteur');
   openModal('detail-modal');
 }
 
-async function deleteCurrentOp() {
+function showDetailTicketTab(role) {
+  ['transporteur','producteur','acheteur'].forEach(r => {
+    const btn = document.getElementById('dtab-' + r.substring(0,3));
+    if(btn) { btn.style.background = r === role ? 'var(--gold)' : ''; btn.style.color = r === role ? '#1a1a0a' : ''; }
+  });
+  if(currentDetailOp) {
+    document.getElementById('detail-ticket-preview').textContent = buildTicketText(currentDetailOp, role);
+  }
+}
+
+function openEditOp() {
   if(!currentDetailOp) return;
-  if(!confirm('Supprimer cette opération ?')) return;
+  const op = currentDetailOp;
+  document.getElementById('edit-op-seq-title').textContent = 'N°' + op.seq;
+  document.getElementById('edit-date').value = op.date;
+  document.getElementById('edit-produit').value = op.produit || '';
+  document.getElementById('edit-poidsbrut').value = op.poidsbrut || '';
+  document.getElementById('edit-poidstare').value = op.poidstare || '';
+  document.getElementById('edit-vehicule').value = op.vehicule || '';
+  document.getElementById('edit-fournisseur').value = op.fournisseur || '';
+  document.getElementById('edit-client').value = op.client || '';
+  document.getElementById('edit-bdc').value = op.bdc || '';
+  document.getElementById('edit-humidite').value = op.humidite || '';
+  document.getElementById('edit-obs').value = op.obs || '';
+  editCalcNet();
+  closeModal('detail-modal');
+  openModal('edit-op-modal');
+}
+
+function editCalcNet() {
+  const brut = parseFloat(document.getElementById('edit-poidsbrut').value) || 0;
+  const tare = parseFloat(document.getElementById('edit-poidstare').value) || 0;
+  const net = brut - tare;
+  const el = document.getElementById('edit-poidsnet-display');
+  el.textContent = net > 0 ? fmtPoidsDisplay(net) + '  (' + net.toLocaleString('fr-FR') + ' kg)  — ' + poidsEnLettres(net) : '—';
+}
+
+async function saveEditOp() {
+  if(!currentDetailOp) return;
+  if(!fileHandle && !driveConnected) { showToast('⚠️ Connectez Drive ou ouvrez un fichier !', 'error'); return; }
+  const brut = parseFloat(document.getElementById('edit-poidsbrut').value);
+  const tare = parseFloat(document.getElementById('edit-poidstare').value);
+  if(!brut || !tare || brut <= tare) {
+    const err = document.getElementById('edit-error');
+    err.textContent = '❌ Poids brut doit être > poids vide'; err.style.display = 'block';
+    return;
+  }
+  document.getElementById('edit-error').style.display = 'none';
+  const idx = allOperations.findIndex(o => o.id === currentDetailOp.id);
+  if(idx < 0) return;
+  allOperations[idx] = {
+    ...allOperations[idx],
+    date: document.getElementById('edit-date').value,
+    produit: document.getElementById('edit-produit').value,
+    poidsbrut: brut,
+    poidstare: tare,
+    poidsnet: brut - tare,
+    vehicule: document.getElementById('edit-vehicule').value,
+    fournisseur: document.getElementById('edit-fournisseur').value,
+    client: document.getElementById('edit-client').value,
+    bdc: document.getElementById('edit-bdc').value,
+    humidite: parseFloat(document.getElementById('edit-humidite').value) || null,
+    obs: document.getElementById('edit-obs').value,
+    editedAt: new Date().toISOString(),
+    editedBy: currentUser ? currentUser.nom : '?'
+  };
+  currentDetailOp = allOperations[idx];
+  await rewriteFile();
+  showToast('✅ Opération modifiée', 'success');
+  closeModal('edit-op-modal');
+  loadOperations();
+}
+
+function askDeleteOp() {
+  document.getElementById('delete-mdp-input').value = '';
+  document.getElementById('delete-mdp-error').style.display = 'none';
+  openModal('delete-confirm-modal');
+}
+
+async function confirmDeleteOp() {
+  const mdp = document.getElementById('delete-mdp-input').value;
+  const mdpRef = config.mdpOperateur || '1234';
+  if(mdp !== mdpRef) {
+    document.getElementById('delete-mdp-error').style.display = 'block';
+    document.getElementById('delete-mdp-input').value = '';
+    return;
+  }
+  closeModal('delete-confirm-modal');
+  if(!currentDetailOp) return;
   allOperations = allOperations.filter(o => o.id !== currentDetailOp.id);
   await rewriteFile();
   showToast('🗑️ Opération supprimée', 'success');
@@ -2608,6 +3266,8 @@ async function deleteCurrentOp() {
   loadOperations();
   updateFileStatus();
 }
+
+async function deleteCurrentOp() { askDeleteOp(); }
 
 // ================================================================
 // STATS
@@ -2702,6 +3362,7 @@ async function saveRefs() {
 }
 
 function populateSelectsFromRefs() {
+  populateLoginNoms();
   populateSelect('op-produit', refs.produits);
   // Sélectionner Palmier à huile par défaut si aucun produit sélectionné
   const prodEl = document.getElementById('op-produit');
@@ -3755,6 +4416,200 @@ async function setOperateurActif() {
 function saveMdpOperateur() {
   const mdp = document.getElementById('cfg-mdp-operateur') ? document.getElementById('cfg-mdp-operateur').value : '';
   if(mdp) { config.mdpOperateur = mdp; showToast('🔐 Mot de passe mis à jour', 'success'); }
+}
+
+
+// ================================================================
+// RAPPORT
+// ================================================================
+function initRapportPage() {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  const today = now.toISOString().slice(0,10);
+  if(!document.getElementById('rpt-date-from').value) document.getElementById('rpt-date-from').value = firstDay;
+  if(!document.getElementById('rpt-date-to').value) document.getElementById('rpt-date-to').value = today;
+
+  // Populate selects
+  const populateRpt = (id, items) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">Tous</option>' + items.map(v => `<option value="${v}" ${v===cur?'selected':''}>${v}</option>`).join('');
+  };
+  populateRpt('rpt-produit', refs.produits || []);
+  const vehiculesAll = [...new Set([...(refs.vehicules||[]), ...allOperations.map(o=>o.vehicule).filter(Boolean)])].sort();
+  populateRpt('rpt-vehicule', vehiculesAll);
+  const produceursAll = [...new Set([...(refs.fournisseurs||[]), ...allOperations.map(o=>o.fournisseur).filter(Boolean)])].sort();
+  populateRpt('rpt-producteur', produceursAll);
+  const clientsAll = [...new Set([...(refs.clients||[]), ...allOperations.map(o=>o.client).filter(Boolean)])].sort();
+  populateRpt('rpt-client', clientsAll);
+}
+
+function getRapportOps() {
+  const from = document.getElementById('rpt-date-from').value;
+  const to = document.getElementById('rpt-date-to').value;
+  const type = document.getElementById('rpt-type').value;
+  const produit = document.getElementById('rpt-produit').value;
+  const vehicule = document.getElementById('rpt-vehicule').value;
+  const producteur = document.getElementById('rpt-producteur').value;
+  const client = document.getElementById('rpt-client').value;
+
+  return allOperations.filter(op => {
+    if(from && op.date && op.date.slice(0,10) < from) return false;
+    if(to && op.date && op.date.slice(0,10) > to) return false;
+    if(type && op.opType !== type) return false;
+    if(produit && op.produit !== produit) return false;
+    if(vehicule && op.vehicule !== vehicule) return false;
+    if(producteur && op.fournisseur !== producteur) return false;
+    if(client && op.client !== client) return false;
+    return true;
+  });
+}
+
+function genererRapport(mode) {
+  const ops = getRapportOps();
+  const groupBy = document.getElementById('rpt-group').value;
+
+  if(mode === 'apercu') {
+    const el = document.getElementById('rapport-apercu');
+    el.style.display = 'block';
+    document.getElementById('rpt-count').textContent = `— ${ops.length} opération(s)`;
+
+    // Résumé
+    const totalNet = ops.reduce((s,o)=>s+o.poidsnet,0);
+    const totalEntrees = ops.filter(o=>o.opType==='entree').reduce((s,o)=>s+o.poidsnet,0);
+    const totalSorties = ops.filter(o=>o.opType==='sortie').reduce((s,o)=>s+o.poidsnet,0);
+    document.getElementById('rpt-summary').innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">TOTAL NET</div>
+        <div style="font-family:'DM Mono',monospace;font-size:16px;color:var(--gold);">${fmtPoidsDisplay(totalNet)}</div>
+        <div style="font-size:10px;color:var(--text3);">${totalNet.toLocaleString('fr-FR')} kg</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(76,175,80,0.4);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">📥 ENTRÉES</div>
+        <div style="font-family:'DM Mono',monospace;font-size:16px;color:var(--green2);">${fmtPoidsDisplay(totalEntrees)}</div>
+        <div style="font-size:10px;color:var(--text3);">${totalEntrees.toLocaleString('fr-FR')} kg</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(239,83,80,0.4);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">📤 SORTIES</div>
+        <div style="font-family:'DM Mono',monospace;font-size:16px;color:var(--red2);">${fmtPoidsDisplay(totalSorties)}</div>
+        <div style="font-size:10px;color:var(--text3);">${totalSorties.toLocaleString('fr-FR')} kg</div>
+      </div>`;
+
+    // Regroupement
+    const groupEl = document.getElementById('rpt-group-sections');
+    if(groupBy) {
+      const grouped = {};
+      ops.forEach(op => {
+        const key = (groupBy === 'date' ? (op.date||'').slice(0,10) : op[groupBy]) || '—';
+        if(!grouped[key]) grouped[key] = [];
+        grouped[key].push(op);
+      });
+      groupEl.innerHTML = Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).map(([k, gops]) => {
+        const gNet = gops.reduce((s,o)=>s+o.poidsnet,0);
+        return `<div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:600;color:var(--gold);">${k}</div>
+          <div style="font-size:12px;color:var(--text2);">${gops.length} op. · <span style="font-family:'DM Mono',monospace;color:var(--green2);">${fmtPoidsDisplay(gNet)}</span> <span style="color:var(--text3);">(${gNet.toLocaleString('fr-FR')} kg)</span></div>
+        </div>`;
+      }).join('');
+    } else groupEl.innerHTML = '';
+
+    // Tableau
+    document.getElementById('rpt-tbody').innerHTML = ops.slice().reverse().map(op => `
+      <tr>
+        <td class="gold">${op.seq}</td>
+        <td>${new Date(op.date).toLocaleDateString('fr-FR')}</td>
+        <td><span class="badge badge-${op.opType}">${op.opType==='entree'?'↓ Entrée':'↑ Sortie'}</span></td>
+        <td class="bold">${op.produit}</td>
+        <td>${(op.poidstare||0).toLocaleString('fr-FR')}</td>
+        <td>${(op.poidsbrut||0).toLocaleString('fr-FR')}</td>
+        <td class="green">${(op.poidsnet||0).toLocaleString('fr-FR')}</td>
+        <td style="font-size:10px;">${fmtPoidsDisplay(op.poidsnet||0)}</td>
+        <td>${op.vehicule||'—'}</td>
+        <td>${op.fournisseur||'—'}</td>
+        <td>${op.client||'—'}</td>
+      </tr>`).join('');
+    return;
+  }
+
+  if(mode === 'pdf') {
+    const groupBy2 = document.getElementById('rpt-group').value;
+    const totalNet = ops.reduce((s,o)=>s+o.poidsnet,0);
+    const totalEntrees = ops.filter(o=>o.opType==='entree').reduce((s,o)=>s+o.poidsnet,0);
+    const totalSorties = ops.filter(o=>o.opType==='sortie').reduce((s,o)=>s+o.poidsnet,0);
+    const dateFrom = document.getElementById('rpt-date-from').value;
+    const dateTo = document.getElementById('rpt-date-to').value;
+    const w = window.open('','_blank');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Rapport Pont Bascule</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#111;}
+      h1{font-size:18px;margin-bottom:4px;} h2{font-size:13px;border-bottom:1px solid #ccc;padding-bottom:4px;margin:16px 0 8px;}
+      .meta{color:#666;font-size:11px;margin-bottom:16px;}
+      .summary{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+      .sum-box{border:1px solid #ddd;border-radius:6px;padding:10px 16px;min-width:140px;}
+      .sum-val{font-size:18px;font-weight:700;} .sum-lbl{font-size:10px;color:#666;margin-top:2px;}
+      table{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;}
+      th{background:#f5f5f5;padding:5px 6px;text-align:left;border:1px solid #ddd;font-size:9px;}
+      td{padding:4px 6px;border:1px solid #eee;}
+      .green{color:green;font-weight:600;} .red{color:#c00;} .gold{color:#8a6400;font-weight:700;}
+      .grp-hdr{background:#fffbe6;padding:6px 8px;border:1px solid #e8d47c;border-radius:4px;margin:8px 0 4px;font-weight:600;font-size:11px;}
+      @media print{body{margin:8px;}}
+    </style></head><body>
+    <h1>📋 RAPPORT PONT BASCULE</h1>
+    <div class="meta">
+      <strong>${config.nom||'Pont Bascule'}</strong>${config.adresse?' — '+config.adresse:''}<br>
+      Période : ${dateFrom||'—'} au ${dateTo||'—'} · Généré le ${new Date().toLocaleString('fr-FR')} · ${ops.length} opération(s)
+      ${currentUser ? ' · Par : '+currentUser.nom : ''}
+    </div>
+    <div class="summary">
+      <div class="sum-box"><div class="sum-val green">${fmtPoidsDisplay(totalEntrees)}</div><div class="sum-lbl">📥 Entrées (${totalEntrees.toLocaleString('fr-FR')} kg)</div></div>
+      <div class="sum-box"><div class="sum-val red">${fmtPoidsDisplay(totalSorties)}</div><div class="sum-lbl">📤 Sorties (${totalSorties.toLocaleString('fr-FR')} kg)</div></div>
+      <div class="sum-box" style="border-color:#c9a84c;"><div class="sum-val gold">${fmtPoidsDisplay(totalNet)}</div><div class="sum-lbl">⚡ Net total (${totalNet.toLocaleString('fr-FR')} kg)</div><div style="font-size:9px;color:#888;font-style:italic;">${poidsEnLettres(totalNet)}</div></div>
+    </div>
+    <h2>Détail des opérations</h2>
+    <table><tr><th>N°</th><th>Date</th><th>Type</th><th>Produit</th><th>Vide(kg)</th><th>Brut(kg)</th><th>Net(kg)</th><th>Format</th><th>En lettres</th><th>Véhicule</th><th>Producteur</th><th>Acheteur</th></tr>
+    ${ops.slice().reverse().map(op=>`<tr>
+      <td class="gold">${op.seq}</td>
+      <td>${new Date(op.date).toLocaleDateString('fr-FR')}</td>
+      <td class="${op.opType==='entree'?'green':'red'}">${op.opType==='entree'?'↓':'↑'}</td>
+      <td><strong>${op.produit}</strong></td>
+      <td>${(op.poidstare||0).toLocaleString('fr-FR')}</td>
+      <td>${(op.poidsbrut||0).toLocaleString('fr-FR')}</td>
+      <td class="green">${(op.poidsnet||0).toLocaleString('fr-FR')}</td>
+      <td style="white-space:nowrap;">${fmtPoidsDisplay(op.poidsnet||0)}</td>
+      <td style="font-size:9px;font-style:italic;color:#555;">${poidsEnLettres(op.poidsnet||0)}</td>
+      <td>${op.vehicule||'—'}</td>
+      <td>${op.fournisseur||'—'}</td>
+      <td>${op.client||'—'}</td>
+    </tr>`).join('')}
+    </table>
+    <script>setTimeout(()=>window.print(),800);<\/script>
+    </body></html>`);
+    w.document.close();
+    return;
+  }
+
+  if(mode === 'csv') {
+    const headers = ['Seq','Type','Date','Produit','Campagne','PoidsVide_kg','PoidsBrut_kg','PoidsNet_kg','PoidsNet_fmt','PoidsNet_lettres','Humidite%','Impuretes%','Vehicule','Producteur','VilleProducteur','Client','VilleClient','ChauffeurNom','ChauffeurPrenom','BonLivraison','Observations'];
+    const rows = ops.map(op=>[
+      op.seq, op.opType, op.date, op.produit, op.campagne||'',
+      op.poidstare||0, op.poidsbrut||0, op.poidsnet||0,
+      fmtPoidsDisplay(op.poidsnet||0), poidsEnLettres(op.poidsnet||0),
+      op.humidite??'', op.impuretes??'',
+      op.vehicule||'', op.fournisseur||'', op.fournisseurVille||'',
+      op.client||'', op.clientVille||'',
+      op.chauffeurNom||op.chauffeur||'', op.chauffeurPrenom||'',
+      op.bdc||'', (op.obs||'').replace(/\n/g,' ')
+    ]);
+    const csv = '\uFEFF' + [headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url;
+    a.download = `rapport_pont_bascule_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('✅ Export CSV téléchargé !', 'success');
+  }
 }
 
 if('serviceWorker' in navigator) {
